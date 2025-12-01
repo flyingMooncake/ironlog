@@ -1,0 +1,78 @@
+name: ironlog
+description: Free gym tracker. No ads. No subscriptions. Ever.
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+
+  # Database
+  sqflite: ^2.3.2
+  sqflite_common_ffi: ^2.3.0
+  path: ^1.8.3
+
+  # Navigation
+  go_router: ^13.2.0
+
+  # UI
+  fl_chart: ^0.66.2
+  flutter_slidable: ^3.0.1
+  vibration: ^2.0.0
+  table_calendar: ^3.0.9
+
+  # Utils
+  uuid: ^4.3.3
+  intl: ^0.19.0
+  collection: ^1.18.0
+  path_provider: ^2.1.1
+  share_plus: ^7.2.1
+  image_picker: ^1.0.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  riverpod_generator: ^2.3.9
+  build_runner: ^2.4.8
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/
+    - assets/ironlog.png
+    - assets/ironlog.jpg
+
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #       - asset: assets/fonts/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/ironlog.jpg"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/ironlog.jpg"
+
+flutter_native_splash:
+  color: "#000000"
+  image: "assets/ironlog.jpg"
+  android: false
+  ios: false
+  web: false
+  linux: false
