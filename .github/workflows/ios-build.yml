@@ -26,32 +26,60 @@ jobs:
       working-directory: gym_app
       run: flutter pub get
 
-    - name: Disable code signing in Xcode project
-      working-directory: gym_app
+    - name: Configure Xcode project for unsigned build
+      working-directory: gym_app/ios
       run: |
-        # Disable code signing requirements
-        sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = ""/g' ios/Runner.xcodeproj/project.pbxproj
-        sed -i '' 's/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = "";/g' ios/Runner.xcodeproj/project.pbxproj
-        sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' ios/Runner.xcodeproj/project.pbxproj
+        # Use xcrun to modify build settings
+        xcrun xcodebuild -project Runner.xcodeproj \
+          -target Runner \
+          -configuration Release \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
+          -showBuildSettings > /dev/null
 
-    - name: Build iOS (no codesign)
-      working-directory: gym_app
+        # Update Info.plist to remove signing requirements
+        /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.example.ironlog" Runner/Info.plist || true
+
+    - name: Build iOS app
+      working-directory: gym_app/ios
       run: |
-        flutter build ios --release --no-codesign
+        # Build using xcodebuild directly with signing disabled
+        xcrun xcodebuild -workspace Runner.xcworkspace \
+          -scheme Runner \
+          -configuration Release \
+          -sdk iphoneos \
+          -destination 'generic/platform=iOS' \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
+          DEVELOPMENT_TEAM="" \
+          clean build
 
     - name: Create IPA (unsigned)
-      working-directory: gym_app
+      working-directory: gym_app/ios
       run: |
-        cd build/ios/iphoneos
-        mkdir Payload
-        cp -r Runner.app Payload/
-        zip -r IronLog.ipa Payload
+        # Find the .app bundle
+        APP_PATH=$(find build/Release-iphoneos -name "Runner.app" -type d | head -n 1)
+
+        if [ -z "$APP_PATH" ]; then
+          echo "Error: Runner.app not found"
+          exit 1
+        fi
+
+        # Create IPA structure
+        mkdir -p Payload
+        cp -r "$APP_PATH" Payload/
+        zip -r ../IronLog.ipa Payload
+
+        # Verify IPA was created
+        ls -lh ../IronLog.ipa
 
     - name: Upload IPA artifact
       uses: actions/upload-artifact@v4
       with:
         name: IronLog-iOS
-        path: gym_app/build/ios/iphoneos/IronLog.ipa
+        path: gym_app/IronLog.ipa
         retention-days: 30
 
     - name: Build summary
