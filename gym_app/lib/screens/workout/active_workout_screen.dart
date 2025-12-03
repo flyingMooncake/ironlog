@@ -14,6 +14,7 @@ import '../../repositories/set_repository.dart';
 import '../../repositories/target_repository.dart';
 import '../../repositories/personal_record_repository.dart';
 import '../../services/haptic_service.dart';
+import '../../services/workout_persistence_service.dart';
 import '../../widgets/rest_timer_widget.dart';
 import '../../models/workout_set.dart' as models;
 
@@ -26,7 +27,7 @@ class ActiveWorkoutScreen extends ConsumerStatefulWidget {
   ConsumerState<ActiveWorkoutScreen> createState() => _ActiveWorkoutScreenState();
 }
 
-class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
+class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> with WidgetsBindingObserver {
   final List<WorkoutExerciseUI> _workoutExercises = [];
   late DateTime _workoutStartTime;
   String? _workoutNotes;
@@ -37,8 +38,59 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _workoutStartTime = DateTime.now();
     _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // App going to background - save workout state
+      _saveWorkoutState();
+    } else if (state == AppLifecycleState.resumed) {
+      // App coming back from background - restore if needed
+      _restoreWorkoutState();
+    }
+  }
+
+  Future<void> _saveWorkoutState() async {
+    if (_workoutExercises.isEmpty) return;
+
+    final workoutData = {
+      'startTime': _workoutStartTime.toIso8601String(),
+      'notes': _workoutNotes,
+      'exercises': _workoutExercises.map((e) => {
+        'exerciseId': e.exercise.id,
+        'exerciseName': e.exercise.name,
+        'sets': e.sets.map((s) => {
+          'weight': s.weight,
+          'reps': s.reps,
+          'time': s.time,
+          'isWarmup': s.isWarmup,
+        }).toList(),
+      }).toList(),
+    };
+
+    await WorkoutPersistenceService.saveWorkoutDraft(workoutData);
+  }
+
+  Future<void> _restoreWorkoutState() async {
+    // Only restore if current workout is empty
+    if (_workoutExercises.isNotEmpty) return;
+
+    final saved = await WorkoutPersistenceService.loadWorkoutDraft();
+    if (saved == null) return;
+
+    // Don't auto-restore, let user decide
+    // The data is there if they navigate back
   }
 
   Future<void> _loadInitialData() async {
@@ -260,11 +312,16 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       ),
     );
 
-    if (confirmed == true && mounted) {
-      if (context.canPop()) {
-        context.pop();
-      } else {
-        context.go('/home');
+    if (confirmed == true) {
+      // Clear the workout draft
+      await WorkoutPersistenceService.clearWorkoutDraft();
+
+      if (mounted) {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
       }
     }
   }
@@ -386,6 +443,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
       for (final exerciseId in exercisesInWorkout) {
         await targetRepo.updateTargetProgress(exerciseId);
       }
+
+      // Clear the workout draft since it's now saved
+      await WorkoutPersistenceService.clearWorkoutDraft();
 
       if (!mounted) return;
 
