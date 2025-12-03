@@ -54,3 +54,4 @@ See [gym_app/BUILD_IOS_INSTRUCTIONS.md](gym_app/BUILD_IOS_INSTRUCTIONS.md) for d
 ## License
 
 Built with Flutter. Runs completely offline.
+
