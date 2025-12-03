@@ -1,0 +1,53 @@
+name: Build iOS App
+
+on:
+  # Trigger manually from GitHub Actions tab
+  workflow_dispatch:
+
+  # Or trigger on push to main branch
+  # push:
+  #   branches: [ main ]
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+
+    - name: Install dependencies
+      working-directory: gym_app
+      run: flutter pub get
+
+    - name: Build iOS (no codesign)
+      working-directory: gym_app
+      run: |
+        flutter build ios --release --no-codesign
+
+    - name: Create IPA (unsigned)
+      working-directory: gym_app
+      run: |
+        cd build/ios/iphoneos
+        mkdir Payload
+        cp -r Runner.app Payload/
+        zip -r IronLog.ipa Payload
+
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: IronLog-iOS
+        path: gym_app/build/ios/iphoneos/IronLog.ipa
+        retention-days: 30
+
+    - name: Build summary
+      run: |
+        echo "✅ iOS build completed!"
+        echo "📦 Download the IPA from the Artifacts section"
+        echo "📱 Install using AltStore, Sideloadly, or TrollStore"
