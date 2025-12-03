@@ -25,22 +25,12 @@ jobs:
       working-directory: gym_app
       run: flutter pub get
 
-    - name: Configure Xcode project for unsigned build
+    - name: Install CocoaPods
       working-directory: gym_app/ios
       run: |
-        # Use xcrun to modify build settings
-        xcrun xcodebuild -project Runner.xcodeproj \
-          -target Runner \
-          -configuration Release \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO \
-          -showBuildSettings > /dev/null
+        pod install --repo-update
 
-        # Update Info.plist to remove signing requirements
-        /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.example.ironlog" Runner/Info.plist || true
-
-    - name: Build iOS app
+    - name: Build iOS app with xcodebuild (no code signing)
       working-directory: gym_app/ios
       run: |
         # Build using xcodebuild directly with signing disabled
@@ -52,8 +42,10 @@ jobs:
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO \
+          PROVISIONING_PROFILE_SPECIFIER="" \
           DEVELOPMENT_TEAM="" \
-          clean build
+          clean build \
+          | xcpretty || true
 
     - name: Create IPA (unsigned)
       working-directory: gym_app/ios
