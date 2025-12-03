@@ -26,6 +26,14 @@ jobs:
       working-directory: gym_app
       run: flutter pub get
 
+    - name: Disable code signing in Xcode project
+      working-directory: gym_app
+      run: |
+        # Disable code signing requirements
+        sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = ""/g' ios/Runner.xcodeproj/project.pbxproj
+        sed -i '' 's/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = "";/g' ios/Runner.xcodeproj/project.pbxproj
+        sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' ios/Runner.xcodeproj/project.pbxproj
+
     - name: Build iOS (no codesign)
       working-directory: gym_app
       run: |
