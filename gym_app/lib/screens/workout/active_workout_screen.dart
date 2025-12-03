@@ -217,8 +217,14 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
   Future<void> _onBackPressed() async {
     if (_workoutExercises.isEmpty) {
-      // No exercises, just go back to home
-      if (mounted) context.go('/home');
+      // No exercises, just go back to previous page or home
+      if (mounted) {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      }
       return;
     }
 
@@ -255,7 +261,11 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     );
 
     if (confirmed == true && mounted) {
-      context.go('/home');
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/home');
+      }
     }
   }
 
@@ -492,7 +502,11 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                context.go('/home');
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/home');
+                }
               },
               child: const Text('OK', style: TextStyle(color: AppColors.primary)),
             ),
@@ -519,9 +533,15 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           await _onBackPressed();
         }
       },
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
+      child: GestureDetector(
+        onTap: () {
+          // Dismiss keyboard when tapping outside
+          FocusScope.of(context).unfocus();
+        },
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          resizeToAvoidBottomInset: true,
+          appBar: AppBar(
         title: const Text('Active Workout'),
         elevation: 0,
         leading: IconButton(
@@ -570,7 +590,12 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             child: _workoutExercises.isEmpty
                 ? _buildEmptyState()
                 : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      top: 16,
+                      bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                    ),
                     itemCount: _workoutExercises.length,
                     itemBuilder: (context, index) {
                       return _buildExerciseCard(_workoutExercises[index], index);
@@ -580,12 +605,15 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
           const RestTimerWidget(),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addExercise,
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Exercise'),
-      ),
+      floatingActionButton: MediaQuery.of(context).viewInsets.bottom > 0
+          ? null // Hide FAB when keyboard is open
+          : FloatingActionButton.extended(
+              onPressed: _addExercise,
+              backgroundColor: AppColors.primary,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Exercise'),
+            ),
+        ),
       ),
     );
   }
@@ -1317,78 +1345,105 @@ class _ExercisePickerDialogState extends ConsumerState<ExercisePickerDialog> {
     final filter = ref.watch(exerciseFilterProvider);
     final exercisesAsync = ref.watch(filteredExercisesProvider(filter));
 
-    return Dialog(
-      backgroundColor: AppColors.surface,
-      child: Container(
-        width: 600,
-        height: 700,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Select Exercise',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: () {
+        // Dismiss keyboard when tapping outside search field
+        FocusScope.of(context).unfocus();
+      },
+      child: Dialog(
+        backgroundColor: AppColors.surface,
+        child: Container(
+          width: 600,
+          height: 700,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Select Exercise',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: AppColors.textMuted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _searchController,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Search exercises...',
+                  hintStyle: const TextStyle(color: AppColors.textMuted),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: AppColors.textMuted),
+                          onPressed: () {
+                            _searchController.clear();
+                            ref.read(exerciseFilterProvider.notifier).setSearchQuery(null);
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: AppColors.surfaceElevated,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                onChanged: (value) {
+                  setState(() {}); // Rebuild to show/hide clear button
+                  ref
+                      .read(exerciseFilterProvider.notifier)
+                      .setSearchQuery(value.isEmpty ? null : value);
+                },
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: exercisesAsync.when(
+                  data: (exercises) {
+                    if (exercises.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No exercises found',
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      itemCount: exercises.length,
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                      itemBuilder: (context, index) {
+                        final exercise = exercises[index];
+                        return _ExerciseWithHistory(
+                          exercise: exercise,
+                          onTap: () => Navigator.pop(context, exercise),
+                        );
+                      },
+                    );
+                  },
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                  error: (error, stack) => Center(
+                    child: Text(
+                      'Error loading exercises',
+                      style: const TextStyle(color: AppColors.error),
                     ),
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, color: AppColors.textMuted),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _searchController,
-              style: const TextStyle(color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Search exercises...',
-                hintStyle: const TextStyle(color: AppColors.textMuted),
-                prefixIcon: const Icon(Icons.search, color: AppColors.primary),
-                filled: true,
-                fillColor: AppColors.surfaceElevated,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
               ),
-              onChanged: (value) {
-                ref
-                    .read(exerciseFilterProvider.notifier)
-                    .setSearchQuery(value.isEmpty ? null : value);
-              },
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: exercisesAsync.when(
-                data: (exercises) => ListView.builder(
-                  itemCount: exercises.length,
-                  itemBuilder: (context, index) {
-                    final exercise = exercises[index];
-                    return _ExerciseWithHistory(
-                      exercise: exercise,
-                      onTap: () => Navigator.pop(context, exercise),
-                    );
-                  },
-                ),
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                ),
-                error: (error, stack) => Center(
-                  child: Text(
-                    'Error loading exercises',
-                    style: const TextStyle(color: AppColors.error),
-                  ),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1492,7 +1547,17 @@ class _RepsTextFieldState extends State<_RepsTextField> {
       child: TextField(
         controller: _controller,
         onChanged: (value) {
-          widget.onChanged(int.tryParse(value));
+          // Remove leading zeros
+          if (value.isNotEmpty && value.startsWith('0') && value.length > 1) {
+            final newValue = value.replaceFirst(RegExp(r'^0+'), '');
+            _controller.value = TextEditingValue(
+              text: newValue,
+              selection: TextSelection.collapsed(offset: newValue.length),
+            );
+            widget.onChanged(int.tryParse(newValue));
+          } else {
+            widget.onChanged(int.tryParse(value));
+          }
         },
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
@@ -1596,6 +1661,17 @@ class _WeightTextFieldState extends State<_WeightTextField> {
           final parts = normalizedValue.split('.');
           if (parts.length > 2) {
             normalizedValue = '${parts[0]}.${parts.sublist(1).join('')}';
+          }
+
+          // Remove leading zeros except for decimal values like "0.5"
+          if (normalizedValue.isNotEmpty &&
+              normalizedValue.startsWith('0') &&
+              normalizedValue.length > 1 &&
+              !normalizedValue.startsWith('0.')) {
+            normalizedValue = normalizedValue.replaceFirst(RegExp(r'^0+'), '');
+            if (normalizedValue.isEmpty || normalizedValue.startsWith('.')) {
+              normalizedValue = '0$normalizedValue';
+            }
           }
 
           if (normalizedValue != value) {

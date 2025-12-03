@@ -555,6 +555,25 @@ class _NumberInputFieldState extends State<_NumberInputField> {
           onChanged: (text) {
             if (!mounted) return;
 
+            // Remove leading zeros
+            if (text.isNotEmpty && text.startsWith('0') && text.length > 1) {
+              final newValue = text.replaceFirst(RegExp(r'^0+'), '');
+              if (newValue.isEmpty) {
+                _controller.value = TextEditingValue(
+                  text: '0',
+                  selection: TextSelection.collapsed(offset: 1),
+                );
+                widget.onChanged(0);
+                return;
+              } else {
+                _controller.value = TextEditingValue(
+                  text: newValue,
+                  selection: TextSelection.collapsed(offset: newValue.length),
+                );
+                text = newValue;
+              }
+            }
+
             if (text.isEmpty) {
               // Allow empty during typing
               widget.onChanged(0);

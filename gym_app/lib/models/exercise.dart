@@ -33,7 +33,8 @@ enum TrackingType {
   weightReps, // Bench press, squat
   repsOnly, // Pull-ups (bodyweight)
   time, // Plank, wall sit
-  weightTime; // Farmer walks
+  weightTime, // Farmer walks
+  assistedWeightReps; // Assisted pull-ups, assisted dips (negative weight)
 
   String get displayName {
     switch (this) {
@@ -45,6 +46,8 @@ enum TrackingType {
         return 'Time';
       case TrackingType.weightTime:
         return 'Weight & Time';
+      case TrackingType.assistedWeightReps:
+        return 'Assisted (Negative Weight)';
     }
   }
 }

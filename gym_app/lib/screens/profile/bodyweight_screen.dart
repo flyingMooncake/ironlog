@@ -469,6 +469,22 @@ class _BodyweightScreenState extends ConsumerState<BodyweightScreen> {
                 controller: weightController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 style: const TextStyle(color: AppColors.textPrimary),
+                onChanged: (value) {
+                  // Remove leading zeros except for decimal values like "0.5"
+                  if (value.isNotEmpty &&
+                      value.startsWith('0') &&
+                      value.length > 1 &&
+                      !value.startsWith('0.')) {
+                    var normalized = value.replaceFirst(RegExp(r'^0+'), '');
+                    if (normalized.isEmpty || normalized.startsWith('.')) {
+                      normalized = '0$normalized';
+                    }
+                    weightController.value = TextEditingValue(
+                      text: normalized,
+                      selection: TextSelection.collapsed(offset: normalized.length),
+                    );
+                  }
+                },
                 decoration: InputDecoration(
                   labelText: 'Weight (kg)',
                   labelStyle: const TextStyle(color: AppColors.textSecondary),

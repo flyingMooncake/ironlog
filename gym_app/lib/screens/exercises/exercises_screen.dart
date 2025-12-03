@@ -427,10 +427,39 @@ class _ExercisesScreenState extends ConsumerState<ExercisesScreen> {
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.textMuted,
-                  size: 24,
+                PopupMenuButton(
+                  icon: const Icon(Icons.more_vert, color: AppColors.textMuted),
+                  color: AppColors.surface,
+                  itemBuilder: (context) => <PopupMenuEntry<String>>[
+                    PopupMenuItem<String>(
+                      value: 'edit',
+                      child: const Row(
+                        children: [
+                          Icon(Icons.edit, color: AppColors.primary, size: 20),
+                          SizedBox(width: 12),
+                          Text('Edit', style: TextStyle(color: AppColors.textPrimary)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem<String>(
+                      value: 'delete',
+                      child: const Row(
+                        children: [
+                          Icon(Icons.delete, color: AppColors.error, size: 20),
+                          SizedBox(width: 12),
+                          Text('Delete', style: TextStyle(color: AppColors.error)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _showEditExerciseDialog(context, exercise);
+                    } else if (value == 'delete') {
+                      _deleteExercise(context, exercise);
+                    }
+                  },
                 ),
               ],
             ),
@@ -438,6 +467,60 @@ class _ExercisesScreenState extends ConsumerState<ExercisesScreen> {
         ),
       ),
     );
+  }
+
+  void _showEditExerciseDialog(BuildContext context, Exercise exercise) {
+    showDialog(
+      context: context,
+      builder: (context) => CreateExerciseDialog(
+        exercise: exercise,
+        onExerciseCreated: () {
+          ref.invalidate(allExercisesProvider);
+        },
+      ),
+    );
+  }
+
+  Future<void> _deleteExercise(BuildContext context, Exercise exercise) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Delete Exercise',
+          style: TextStyle(color: AppColors.textPrimary),
+        ),
+        content: Text(
+          'Are you sure you want to delete "${exercise.name}"?',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && exercise.id != null) {
+      final repo = ref.read(exerciseRepositoryProvider);
+      await repo.deleteExercise(exercise.id!);
+      ref.invalidate(allExercisesProvider);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Exercise deleted'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    }
   }
 
   IconData _getEquipmentIcon(Equipment? equipment) {
@@ -510,10 +593,12 @@ class _ExercisesScreenState extends ConsumerState<ExercisesScreen> {
 
 class CreateExerciseDialog extends StatefulWidget {
   final VoidCallback onExerciseCreated;
+  final Exercise? exercise;
 
   const CreateExerciseDialog({
     super.key,
     required this.onExerciseCreated,
+    this.exercise,
   });
 
   @override
@@ -526,10 +611,29 @@ class _CreateExerciseDialogState extends State<CreateExerciseDialog> {
   final _notesController = TextEditingController();
   final ExerciseRepository _exerciseRepo = ExerciseRepository();
 
-  MuscleGroup _selectedPrimaryMuscle = MuscleGroup.chest;
-  Equipment _selectedEquipment = Equipment.barbell;
-  TrackingType _selectedTrackingType = TrackingType.weightReps;
+  late MuscleGroup _selectedPrimaryMuscle;
+  late Equipment _selectedEquipment;
+  late TrackingType _selectedTrackingType;
   final List<MuscleGroup> _selectedSecondaryMuscles = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.exercise != null) {
+      // Editing existing exercise
+      _nameController.text = widget.exercise!.name;
+      _notesController.text = widget.exercise!.notes ?? '';
+      _selectedPrimaryMuscle = widget.exercise!.primaryMuscle;
+      _selectedEquipment = widget.exercise!.equipment ?? Equipment.barbell;
+      _selectedTrackingType = widget.exercise!.trackingType;
+      _selectedSecondaryMuscles.addAll(widget.exercise!.secondaryMuscles);
+    } else {
+      // Creating new exercise - set defaults
+      _selectedPrimaryMuscle = MuscleGroup.chest;
+      _selectedEquipment = Equipment.barbell;
+      _selectedTrackingType = TrackingType.weightReps;
+    }
+  }
 
   @override
   void dispose() {
@@ -555,10 +659,10 @@ class _CreateExerciseDialogState extends State<CreateExerciseDialog> {
               children: [
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Create Custom Exercise',
-                        style: TextStyle(
+                        widget.exercise != null ? 'Edit Exercise' : 'Create Custom Exercise',
+                        style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -755,7 +859,7 @@ class _CreateExerciseDialogState extends State<CreateExerciseDialog> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text('Create'),
+                      child: Text(widget.exercise != null ? 'Save' : 'Create'),
                     ),
                   ],
                 ),
@@ -773,6 +877,7 @@ class _CreateExerciseDialogState extends State<CreateExerciseDialog> {
     }
 
     final exercise = Exercise(
+      id: widget.exercise?.id,
       name: _nameController.text.trim(),
       primaryMuscle: _selectedPrimaryMuscle,
       secondaryMuscles: _selectedSecondaryMuscles,
@@ -783,7 +888,13 @@ class _CreateExerciseDialogState extends State<CreateExerciseDialog> {
     );
 
     try {
-      await _exerciseRepo.createExercise(exercise);
+      if (widget.exercise != null) {
+        // Update existing exercise
+        await _exerciseRepo.updateExercise(exercise);
+      } else {
+        // Create new exercise
+        await _exerciseRepo.createExercise(exercise);
+      }
 
       if (!mounted) return;
 
@@ -791,17 +902,19 @@ class _CreateExerciseDialogState extends State<CreateExerciseDialog> {
       widget.onExerciseCreated();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Custom exercise created successfully'),
+        SnackBar(
+          content: Text(widget.exercise != null
+              ? 'Exercise updated successfully'
+              : 'Custom exercise created successfully'),
           backgroundColor: AppColors.success,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error creating exercise: $e'),
+          content: Text('Error ${widget.exercise != null ? 'updating' : 'creating'} exercise: $e'),
           backgroundColor: AppColors.error,
         ),
       );

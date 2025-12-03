@@ -16,6 +16,7 @@ class SeedData {
       {'name': 'Pec Deck Machine', 'primary_muscle': 'chest', 'secondary_muscles': '', 'tracking_type': 'weight_reps', 'equipment': 'machine'},
       {'name': 'Push-ups', 'primary_muscle': 'chest', 'secondary_muscles': 'triceps,shoulders', 'tracking_type': 'reps_only', 'equipment': 'bodyweight'},
       {'name': 'Dips (Chest Focus)', 'primary_muscle': 'chest', 'secondary_muscles': 'triceps,shoulders', 'tracking_type': 'weight_reps', 'equipment': 'bodyweight'},
+      {'name': 'Assisted Dips (Chest)', 'primary_muscle': 'chest', 'secondary_muscles': 'triceps,shoulders', 'tracking_type': 'assisted_weight_reps', 'equipment': 'machine'},
 
       // === BACK (15) ===
       {'name': 'Conventional Deadlift', 'primary_muscle': 'back', 'secondary_muscles': 'hamstrings,glutes,lowerBack', 'tracking_type': 'weight_reps', 'equipment': 'barbell'},
@@ -28,6 +29,8 @@ class SeedData {
       {'name': 'Lat Pulldown (Close Grip)', 'primary_muscle': 'lats', 'secondary_muscles': 'biceps,back', 'tracking_type': 'weight_reps', 'equipment': 'cable'},
       {'name': 'Pull-ups', 'primary_muscle': 'lats', 'secondary_muscles': 'biceps,back', 'tracking_type': 'reps_only', 'equipment': 'bodyweight'},
       {'name': 'Chin-ups', 'primary_muscle': 'lats', 'secondary_muscles': 'biceps,back', 'tracking_type': 'reps_only', 'equipment': 'bodyweight'},
+      {'name': 'Assisted Pull-ups', 'primary_muscle': 'lats', 'secondary_muscles': 'biceps,back', 'tracking_type': 'assisted_weight_reps', 'equipment': 'machine'},
+      {'name': 'Assisted Chin-ups', 'primary_muscle': 'lats', 'secondary_muscles': 'biceps,back', 'tracking_type': 'assisted_weight_reps', 'equipment': 'machine'},
       {'name': 'Face Pulls', 'primary_muscle': 'back', 'secondary_muscles': 'shoulders,traps', 'tracking_type': 'weight_reps', 'equipment': 'cable'},
       {'name': 'Straight Arm Pulldown', 'primary_muscle': 'lats', 'secondary_muscles': '', 'tracking_type': 'weight_reps', 'equipment': 'cable'},
       {'name': 'Machine Row', 'primary_muscle': 'back', 'secondary_muscles': 'biceps', 'tracking_type': 'weight_reps', 'equipment': 'machine'},
@@ -69,6 +72,7 @@ class SeedData {
       {'name': 'Dumbbell Kickback', 'primary_muscle': 'triceps', 'secondary_muscles': '', 'tracking_type': 'weight_reps', 'equipment': 'dumbbell'},
       {'name': 'Diamond Push-ups', 'primary_muscle': 'triceps', 'secondary_muscles': 'chest', 'tracking_type': 'reps_only', 'equipment': 'bodyweight'},
       {'name': 'Dips (Tricep Focus)', 'primary_muscle': 'triceps', 'secondary_muscles': 'chest,shoulders', 'tracking_type': 'weight_reps', 'equipment': 'bodyweight'},
+      {'name': 'Assisted Dips (Tricep)', 'primary_muscle': 'triceps', 'secondary_muscles': 'chest,shoulders', 'tracking_type': 'assisted_weight_reps', 'equipment': 'machine'},
       {'name': 'Cable Overhead Extension', 'primary_muscle': 'triceps', 'secondary_muscles': '', 'tracking_type': 'weight_reps', 'equipment': 'cable'},
       {'name': 'Machine Tricep Extension', 'primary_muscle': 'triceps', 'secondary_muscles': '', 'tracking_type': 'weight_reps', 'equipment': 'machine'},
 

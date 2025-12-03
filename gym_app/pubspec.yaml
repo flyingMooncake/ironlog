@@ -64,10 +64,11 @@ flutter:
 
 flutter_launcher_icons:
   android: true
-  ios: false
+  ios: true
   image_path: "assets/ironlog.jpg"
   adaptive_icon_background: "#000000"
   adaptive_icon_foreground: "assets/ironlog.jpg"
+  remove_alpha_ios: true
 
 flutter_native_splash:
   color: "#000000"

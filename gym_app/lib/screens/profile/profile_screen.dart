@@ -29,20 +29,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: profileAsync.when(
-        data: (profile) => _buildProfileContent(profile),
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
-        ),
-        error: (error, stack) => Center(
-          child: Text(
-            'Error loading profile',
-            style: const TextStyle(color: AppColors.error),
+    return GestureDetector(
+      onTap: () {
+        // Dismiss keyboard when tapping outside
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: profileAsync.when(
+          data: (profile) => _buildProfileContent(profile),
+          loading: () => const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
           ),
-        ),
+          error: (error, stack) => Center(
+            child: Text(
+              'Error loading profile',
+              style: const TextStyle(color: AppColors.error),
+            ),
+          ),
+          ),
         ),
       ),
     );

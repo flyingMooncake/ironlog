@@ -48,23 +48,32 @@ jobs:
           | xcpretty || true
 
     - name: Create IPA (unsigned)
-      working-directory: gym_app/ios
+      working-directory: gym_app
       run: |
-        # Find the .app bundle
-        APP_PATH=$(find build/Release-iphoneos -name "Runner.app" -type d | head -n 1)
+        # Find the .app bundle in DerivedData or build folder
+        APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Runner.app" -path "*/Build/Products/Release-iphoneos/*" -type d 2>/dev/null | head -n 1)
 
         if [ -z "$APP_PATH" ]; then
-          echo "Error: Runner.app not found"
+          echo "Error: Runner.app not found in DerivedData"
+          echo "Searching in alternate locations..."
+          APP_PATH=$(find . -name "Runner.app" -type d | head -n 1)
+        fi
+
+        if [ -z "$APP_PATH" ]; then
+          echo "Error: Runner.app not found anywhere"
           exit 1
         fi
+
+        echo "Found Runner.app at: $APP_PATH"
 
         # Create IPA structure
         mkdir -p Payload
         cp -r "$APP_PATH" Payload/
-        zip -r ../IronLog.ipa Payload
+        zip -qr IronLog.ipa Payload
 
         # Verify IPA was created
-        ls -lh ../IronLog.ipa
+        ls -lh IronLog.ipa
+        echo "IPA created successfully!"
 
     - name: Upload IPA artifact
       uses: actions/upload-artifact@v4

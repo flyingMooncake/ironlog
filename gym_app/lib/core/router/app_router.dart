@@ -165,7 +165,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.note_alt),
-            label: 'Workouts',
+            label: 'Temp',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.fitness_center),
