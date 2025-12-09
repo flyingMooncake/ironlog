@@ -112,6 +112,13 @@ class DatabaseHelper {
       // Column already exists
     }
 
+    // Add template_id to workout_sessions
+    try {
+      await db.execute('ALTER TABLE workout_sessions ADD COLUMN template_id INTEGER');
+    } catch (e) {
+      // Column already exists
+    }
+
     // Create indexes if they don't exist (for existing databases)
     // Must be done AFTER tables are created
     try {

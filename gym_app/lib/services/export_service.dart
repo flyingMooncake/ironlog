@@ -8,6 +8,8 @@ import '../repositories/exercise_repository.dart';
 import '../repositories/target_repository.dart';
 import '../repositories/user_repository.dart';
 import '../repositories/weight_history_repository.dart';
+import '../repositories/template_group_repository.dart';
+import '../repositories/template_repository.dart';
 
 class ExportService {
   final WorkoutRepository _workoutRepo = WorkoutRepository();
@@ -16,6 +18,8 @@ class ExportService {
   final TargetRepository _targetRepo = TargetRepository();
   final UserRepository _userRepo = UserRepository();
   final WeightHistoryRepository _weightHistoryRepo = WeightHistoryRepository();
+  final TemplateGroupRepository _templateGroupRepo = TemplateGroupRepository();
+  final TemplateRepository _templateRepo = TemplateRepository();
 
   /// Export all data to JSON format
   Future<Map<String, dynamic>> exportAllData() async {
@@ -65,7 +69,6 @@ class ExportService {
   /// Export and share the JSON file
   Future<void> exportAndShare() async {
     final filePath = await exportToJsonFile();
-    final file = File(filePath);
 
     await Share.shareXFiles(
       [XFile(filePath)],
@@ -101,5 +104,120 @@ class ExportService {
       'targets': targets.length,
       'weight_entries': weightHistory.length,
     };
+  }
+
+  /// Export a single workout to JSON format
+  Future<Map<String, dynamic>> exportSingleWorkout(int workoutId) async {
+    final session = await _workoutRepo.getWorkoutSessionById(workoutId);
+    if (session == null) {
+      throw Exception('Workout not found');
+    }
+
+    final sets = await _setRepo.getSetsBySessionId(workoutId);
+
+    // Get unique exercises used in this workout
+    final exerciseIds = sets.map((set) => set.exerciseId).toSet();
+    final exercises = <Map<String, dynamic>>[];
+    for (final exerciseId in exerciseIds) {
+      final exercise = await _exerciseRepo.getExerciseById(exerciseId);
+      if (exercise != null) {
+        exercises.add(exercise.toMap());
+      }
+    }
+
+    return {
+      'export_date': DateTime.now().toIso8601String(),
+      'version': '1.0.0',
+      'workout_session': session.toMap(),
+      'workout_sets': sets.map((set) => set.toMap()).toList(),
+      'exercises': exercises,
+    };
+  }
+
+  /// Export a single workout to JSON file and share
+  Future<void> exportAndShareSingleWorkout(int workoutId) async {
+    final data = await exportSingleWorkout(workoutId);
+    final jsonString = const JsonEncoder.withIndent('  ').convert(data);
+
+    // Get directory for saving
+    final directory = await getApplicationDocumentsDirectory();
+    final session = await _workoutRepo.getWorkoutSessionById(workoutId);
+    final workoutName = session?.name ?? 'workout';
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+    final fileName = 'ironlog_${workoutName.replaceAll(' ', '_').toLowerCase()}_$timestamp.json';
+    final filePath = '${directory.path}/$fileName';
+
+    // Write to file
+    final file = File(filePath);
+    await file.writeAsString(jsonString);
+
+    await Share.shareXFiles(
+      [XFile(filePath)],
+      subject: 'IronLog Workout Export - $workoutName',
+      text: 'My workout: $workoutName',
+    );
+  }
+
+  /// Export a single template group to JSON format
+  Future<Map<String, dynamic>> exportSingleGroup(int groupId) async {
+    final group = await _templateGroupRepo.getGroupById(groupId);
+    if (group == null) {
+      throw Exception('Group not found');
+    }
+
+    final templates = await _templateRepo.getTemplatesByGroup(groupId);
+
+    // Get all template exercises and exercises used in this group
+    final allTemplateExercises = <Map<String, dynamic>>[];
+    final exerciseIds = <int>{};
+
+    for (final template in templates) {
+      for (final templateExercise in template.exercises) {
+        allTemplateExercises.add(templateExercise.toMap());
+        exerciseIds.add(templateExercise.exerciseId);
+      }
+    }
+
+    // Get full exercise details
+    final exercises = <Map<String, dynamic>>[];
+    for (final exerciseId in exerciseIds) {
+      final exercise = await _exerciseRepo.getExerciseById(exerciseId);
+      if (exercise != null) {
+        exercises.add(exercise.toMap());
+      }
+    }
+
+    return {
+      'export_date': DateTime.now().toIso8601String(),
+      'version': '1.0.0',
+      'template_group': group.toMap(),
+      'workout_templates': templates.map((template) => template.toMap()).toList(),
+      'template_exercises': allTemplateExercises,
+      'exercises': exercises,
+    };
+  }
+
+  /// Export a single template group to JSON file and share
+  Future<void> exportAndShareSingleGroup(int groupId) async {
+    final data = await exportSingleGroup(groupId);
+    final jsonString = const JsonEncoder.withIndent('  ').convert(data);
+
+    // Get directory for saving
+    final directory = await getApplicationDocumentsDirectory();
+    final group = await _templateGroupRepo.getGroupById(groupId);
+    final groupName = group?.name ?? 'group';
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
+    final fileName = 'ironlog_${groupName.replaceAll(' ', '_').toLowerCase()}_$timestamp.json';
+    final filePath = '${directory.path}/$fileName';
+
+    // Write to file
+    final file = File(filePath);
+    await file.writeAsString(jsonString);
+
+    await Share.shareXFiles(
+      [XFile(filePath)],
+      subject: 'IronLog Group Export - $groupName',
+      text: 'My template group: $groupName',
+    );
   }
 }

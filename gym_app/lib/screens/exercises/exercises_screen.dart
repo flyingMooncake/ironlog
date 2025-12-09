@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/exercise.dart';
 import '../../providers/exercise_provider.dart';
 import '../../core/theme/colors.dart';
 import '../../repositories/exercise_repository.dart';
 import '../../widgets/one_rm_calculator.dart';
 import '../../widgets/plate_calculator.dart';
-import 'exercise_progress_screen.dart';
 
 class ExercisesScreen extends ConsumerStatefulWidget {
   const ExercisesScreen({super.key});
@@ -352,12 +352,7 @@ class _ExercisesScreenState extends ConsumerState<ExercisesScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ExerciseProgressScreen(exercise: exercise),
-              ),
-            );
+            context.push('/exercise-progress/${exercise.id}');
           },
           borderRadius: BorderRadius.circular(16),
           child: Padding(

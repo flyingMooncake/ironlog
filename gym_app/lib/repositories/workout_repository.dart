@@ -234,6 +234,18 @@ class WorkoutRepository {
 
     return result.map((row) => row['primary_muscle'] as String).toList();
   }
+
+  // Get all workout sessions for a specific template
+  Future<List<WorkoutSession>> getWorkoutSessionsByTemplateId(int templateId) async {
+    final db = await _dbHelper.database;
+    final result = await db.query(
+      'workout_sessions',
+      where: 'template_id = ?',
+      whereArgs: [templateId],
+      orderBy: 'started_at DESC',
+    );
+    return result.map((map) => WorkoutSession.fromMap(map)).toList();
+  }
 }
 
 // Helper class to return workout with exercises and sets

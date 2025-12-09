@@ -44,7 +44,9 @@ class Schema {
       duration_minutes INTEGER,
       total_volume REAL,
       notes TEXT,
-      bodyweight REAL
+      bodyweight REAL,
+      template_id INTEGER,
+      FOREIGN KEY (template_id) REFERENCES workout_templates(id) ON DELETE SET NULL
     )
   ''';
 

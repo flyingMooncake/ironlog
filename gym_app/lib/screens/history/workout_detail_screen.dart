@@ -5,8 +5,9 @@ import '../../core/theme/colors.dart';
 import '../../core/utils/calculations.dart';
 import '../../providers/workout_provider.dart';
 import '../../repositories/workout_repository.dart';
+import '../../services/export_service.dart';
 
-class WorkoutDetailScreen extends ConsumerWidget {
+class WorkoutDetailScreen extends ConsumerStatefulWidget {
   final int workoutId;
 
   const WorkoutDetailScreen({
@@ -15,14 +16,64 @@ class WorkoutDetailScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final workoutDetailsAsync = ref.watch(workoutDetailsProvider(workoutId));
+  ConsumerState<WorkoutDetailScreen> createState() => _WorkoutDetailScreenState();
+}
+
+class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
+  final ExportService _exportService = ExportService();
+  bool _isExporting = false;
+
+  Future<void> _exportWorkout() async {
+    setState(() => _isExporting = true);
+    try {
+      await _exportService.exportAndShareSingleWorkout(widget.workoutId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Workout exported successfully'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error exporting workout: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isExporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final workoutDetailsAsync = ref.watch(workoutDetailsProvider(widget.workoutId));
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Workout Details'),
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: _isExporting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Icons.ios_share),
+            onPressed: _isExporting ? null : _exportWorkout,
+            tooltip: 'Export workout',
+          ),
+        ],
       ),
       body: workoutDetailsAsync.when(
         data: (details) {
@@ -39,7 +90,7 @@ class WorkoutDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildNotFound() {
+  static Widget _buildNotFound() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -59,7 +110,7 @@ class WorkoutDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildError(Object error) {
+  static Widget _buildError(Object error) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -85,7 +136,7 @@ class WorkoutDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildWorkoutDetails(BuildContext context, WorkoutDetails details) {
+  static Widget _buildWorkoutDetails(BuildContext context, WorkoutDetails details) {
     final session = details.session;
     final exercises = details.exercises;
 
@@ -216,7 +267,7 @@ class WorkoutDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatColumn(IconData icon, String label, String value, Color color) {
+  static Widget _buildStatColumn(IconData icon, String label, String value, Color color) {
     return Column(
       children: [
         Icon(icon, color: color, size: 24),
@@ -241,7 +292,7 @@ class WorkoutDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildExerciseCard(ExerciseWithSets exerciseWithSets) {
+  static Widget _buildExerciseCard(ExerciseWithSets exerciseWithSets) {
     final exercise = exerciseWithSets.exercise;
     final sets = exerciseWithSets.sets;
 
@@ -395,7 +446,7 @@ class WorkoutDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSetRow(workoutSet) {
+  static Widget _buildSetRow(workoutSet) {
     // Check if this set is a PR (RPE = 10 means user marked it as PR)
     final isPR = workoutSet.rpe == 10;
 

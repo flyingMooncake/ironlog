@@ -31,6 +31,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> with 
   final List<WorkoutExerciseUI> _workoutExercises = [];
   late DateTime _workoutStartTime;
   String? _workoutNotes;
+  int? _templateId; // Track which template this workout is based on
   final WorkoutRepository _workoutRepo = WorkoutRepository();
   final SetRepository _setRepo = SetRepository();
   final PersonalRecordRepository _prRepo = PersonalRecordRepository();
@@ -73,7 +74,6 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> with 
         'sets': e.sets.map((s) => {
           'weight': s.weight,
           'reps': s.reps,
-          'time': s.time,
           'isWarmup': s.isWarmup,
         }).toList(),
       }).toList(),
@@ -121,6 +121,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> with 
     final template = await repo.getTemplate(templateId);
 
     if (template == null) return;
+
+    // Store the template ID so we can link the workout to it
+    _templateId = templateId;
 
     final exerciseRepo = ref.read(exerciseRepositoryProvider);
 
@@ -348,6 +351,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> with 
       durationMinutes: durationMinutes,
       totalVolume: 0, // Will calculate after
       notes: _workoutNotes,
+      templateId: _templateId, // Link to template if workout was started from one
     );
 
     try {

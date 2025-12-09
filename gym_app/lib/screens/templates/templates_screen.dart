@@ -8,7 +8,9 @@ import '../../providers/template_provider.dart';
 import '../../repositories/template_repository.dart';
 import '../../repositories/template_group_repository.dart';
 import '../../services/haptic_service.dart';
+import '../../services/export_service.dart';
 import 'package:intl/intl.dart';
+import 'template_analysis_screen.dart';
 
 class TemplatesScreen extends ConsumerStatefulWidget {
   const TemplatesScreen({super.key});
@@ -194,6 +196,16 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                             ],
                           ),
                         ),
+                        PopupMenuItem<String>(
+                          value: 'export',
+                          child: const Row(
+                            children: [
+                              Icon(Icons.download, color: AppColors.primary, size: 20),
+                              SizedBox(width: 12),
+                              Text('Export Group', style: TextStyle(color: AppColors.textPrimary)),
+                            ],
+                          ),
+                        ),
                         const PopupMenuDivider(),
                         PopupMenuItem<String>(
                           value: 'delete',
@@ -209,6 +221,8 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                       onSelected: (value) {
                         if (value == 'rename') {
                           _renameGroup(context, group);
+                        } else if (value == 'export') {
+                          _exportGroup(context, group);
                         } else if (value == 'delete') {
                           _deleteGroup(context, group);
                         }
@@ -402,6 +416,17 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                   color: AppColors.surface,
                   itemBuilder: (context) => <PopupMenuEntry<String>>[
                     PopupMenuItem<String>(
+                      value: 'analysis',
+                      child: const Row(
+                        children: [
+                          Icon(Icons.analytics, color: AppColors.primary, size: 20),
+                          SizedBox(width: 12),
+                          Text('View Analysis', style: TextStyle(color: AppColors.textPrimary)),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem<String>(
                       value: 'edit',
                       child: const Row(
                         children: [
@@ -444,7 +469,9 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                     ),
                   ],
                   onSelected: (value) {
-                    if (value == 'edit') {
+                    if (value == 'analysis') {
+                      _viewAnalysis(context, template);
+                    } else if (value == 'edit') {
                       _editTemplate(context, template);
                     } else if (value == 'move') {
                       _moveTemplateToGroup(context, template);
@@ -928,6 +955,16 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
     }
   }
 
+  void _viewAnalysis(BuildContext context, WorkoutTemplate template) {
+    HapticService.instance.light();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TemplateAnalysisScreen(template: template),
+      ),
+    );
+  }
+
   void _editTemplate(BuildContext context, WorkoutTemplate template) {
     HapticService.instance.light();
     context.push('/template-editor/${template.id}');
@@ -1018,5 +1055,48 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
 
     nameController.dispose();
     descriptionController.dispose();
+  }
+
+  void _exportGroup(BuildContext context, TemplateGroup group) async {
+    if (group.id == null) return;
+
+    try {
+      HapticService.instance.medium();
+
+      // Show loading indicator
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Exporting group...'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+
+      final exportService = ExportService();
+      await exportService.exportAndShareSingleGroup(group.id!);
+
+      if (context.mounted) {
+        HapticService.instance.success();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Exported "${group.name}"'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        // Navigate back after successful export
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        HapticService.instance.error();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 }

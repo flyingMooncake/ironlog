@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/exercises/exercises_screen.dart';
+import '../../screens/exercises/exercise_progress_screen.dart';
 import '../../screens/workout/active_workout_screen.dart';
 import '../../screens/history/history_screen.dart';
 import '../../screens/history/workout_detail_screen.dart';
@@ -17,7 +18,9 @@ import '../../screens/profile/workout_calendar_screen.dart';
 import '../../screens/templates/templates_screen.dart';
 import '../../screens/templates/template_editor_screen.dart';
 import '../../models/workout_template.dart';
+import '../../models/exercise.dart';
 import '../../repositories/template_repository.dart';
+import '../../repositories/exercise_repository.dart';
 import '../theme/colors.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -43,6 +46,15 @@ class AppRouter {
           final id = int.parse(state.pathParameters['id']!);
           return MaterialPage(
             child: WorkoutDetailScreen(workoutId: id),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/exercise-progress/:id',
+        pageBuilder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return MaterialPage(
+            child: _ExerciseProgressLoader(exerciseId: id),
           );
         },
       ),
@@ -261,6 +273,44 @@ class _TemplateEditorLoader extends ConsumerWidget {
         }
 
         return TemplateEditorScreen(template: snapshot.data!);
+      },
+    );
+  }
+}
+
+class _ExerciseProgressLoader extends ConsumerWidget {
+  final int exerciseId;
+
+  const _ExerciseProgressLoader({required this.exerciseId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FutureBuilder<Exercise?>(
+      future: ExerciseRepository().getExerciseById(exerciseId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: AppColors.background,
+            body: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          );
+        }
+
+        if (snapshot.hasError || snapshot.data == null) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            appBar: AppBar(title: const Text('Error')),
+            body: const Center(
+              child: Text(
+                'Exercise not found',
+                style: TextStyle(color: AppColors.error),
+              ),
+            ),
+          );
+        }
+
+        return ExerciseProgressScreen(exercise: snapshot.data!);
       },
     );
   }

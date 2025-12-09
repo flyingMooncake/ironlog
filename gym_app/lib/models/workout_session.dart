@@ -7,6 +7,7 @@ class WorkoutSession {
   final double? totalVolume;
   final String? notes;
   final double? bodyweight;
+  final int? templateId;
 
   WorkoutSession({
     this.id,
@@ -17,6 +18,7 @@ class WorkoutSession {
     this.totalVolume,
     this.notes,
     this.bodyweight,
+    this.templateId,
   });
 
   factory WorkoutSession.fromMap(Map<String, dynamic> map) {
@@ -31,6 +33,7 @@ class WorkoutSession {
       totalVolume: map['total_volume'] as double?,
       notes: map['notes'] as String?,
       bodyweight: map['bodyweight'] as double?,
+      templateId: map['template_id'] as int?,
     );
   }
 
@@ -44,6 +47,7 @@ class WorkoutSession {
       'total_volume': totalVolume,
       'notes': notes,
       'bodyweight': bodyweight,
+      'template_id': templateId,
     };
   }
 
@@ -56,6 +60,7 @@ class WorkoutSession {
     double? totalVolume,
     String? notes,
     double? bodyweight,
+    int? templateId,
   }) {
     return WorkoutSession(
       id: id ?? this.id,
@@ -66,6 +71,7 @@ class WorkoutSession {
       totalVolume: totalVolume ?? this.totalVolume,
       notes: notes ?? this.notes,
       bodyweight: bodyweight ?? this.bodyweight,
+      templateId: templateId ?? this.templateId,
     );
   }
 }

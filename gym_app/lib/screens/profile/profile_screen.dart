@@ -119,40 +119,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       child: Column(
         children: [
-          _buildInfoField(
+          _buildNumberField(
             label: 'Weight (${profile.weightUnit})',
             controller: _weightController,
-            keyboardType: TextInputType.number,
-            onChanged: (value) => _saveProfile(profile, weight: double.tryParse(value)),
+            isDecimal: true,
+            onSubmitted: () => _saveProfile(profile, weight: double.tryParse(_weightController.text), showSnackBar: true),
           ),
           const SizedBox(height: 16),
-          _buildInfoField(
+          _buildNumberField(
             label: 'Height (${profile.heightUnit})',
             controller: _heightController,
-            keyboardType: TextInputType.number,
-            onChanged: (value) => _saveProfile(profile, height: double.tryParse(value)),
+            isDecimal: true,
+            onSubmitted: () => _saveProfile(profile, height: double.tryParse(_heightController.text), showSnackBar: true),
           ),
           const SizedBox(height: 16),
-          _buildInfoField(
+          _buildNumberField(
             label: 'Age',
             controller: _ageController,
-            keyboardType: TextInputType.number,
-            onChanged: (value) => _saveProfile(profile, age: int.tryParse(value)),
+            isDecimal: false,
+            onSubmitted: () => _saveProfile(profile, age: int.tryParse(_ageController.text), showSnackBar: true),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoField({
+  Widget _buildNumberField({
     required String label,
     required TextEditingController controller,
-    required TextInputType keyboardType,
-    required Function(String) onChanged,
+    required bool isDecimal,
+    required VoidCallback onSubmitted,
   }) {
     return TextField(
       controller: controller,
-      keyboardType: keyboardType,
+      keyboardType: isDecimal
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : TextInputType.number,
       style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
         labelText: label,
@@ -164,7 +166,48 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           borderSide: BorderSide.none,
         ),
       ),
-      onChanged: onChanged,
+      onChanged: (value) {
+        // Apply same number input logic as workout screen
+        String normalizedValue = value;
+
+        if (isDecimal) {
+          // Replace comma with dot
+          normalizedValue = normalizedValue.replaceAll(',', '.');
+
+          // Replace multiple consecutive dots with single dot
+          normalizedValue = normalizedValue.replaceAll(RegExp(r'\.{2,}'), '.');
+
+          // Remove extra decimal points (keep only the first one)
+          final parts = normalizedValue.split('.');
+          if (parts.length > 2) {
+            normalizedValue = '${parts[0]}.${parts.sublist(1).join('')}';
+          }
+
+          // Remove leading zeros except for decimal values like "0.5"
+          if (normalizedValue.isNotEmpty &&
+              normalizedValue.startsWith('0') &&
+              normalizedValue.length > 1 &&
+              !normalizedValue.startsWith('0.')) {
+            normalizedValue = normalizedValue.replaceFirst(RegExp(r'^0+'), '');
+            if (normalizedValue.isEmpty || normalizedValue.startsWith('.')) {
+              normalizedValue = '0$normalizedValue';
+            }
+          }
+        } else {
+          // For integer fields, remove leading zeros
+          if (normalizedValue.isNotEmpty && normalizedValue.startsWith('0') && normalizedValue.length > 1) {
+            normalizedValue = normalizedValue.replaceFirst(RegExp(r'^0+'), '');
+          }
+        }
+
+        if (normalizedValue != value) {
+          controller.value = TextEditingValue(
+            text: normalizedValue,
+            selection: TextSelection.collapsed(offset: normalizedValue.length),
+          );
+        }
+      },
+      onSubmitted: (_) => onSubmitted(),
     );
   }
 
@@ -346,13 +389,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 activeColor: AppColors.primary,
                 onChanged: (value) {
                   if (value != null) {
-                    _saveProfile(profile, unitSystem: value);
+                    _saveProfile(profile, unitSystem: value, showSnackBar: true);
                     Navigator.pop(context);
                   }
                 },
               ),
               onTap: () {
-                _saveProfile(profile, unitSystem: UnitSystem.metric);
+                _saveProfile(profile, unitSystem: UnitSystem.metric, showSnackBar: true);
                 Navigator.pop(context);
               },
             ),
@@ -364,13 +407,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 activeColor: AppColors.primary,
                 onChanged: (value) {
                   if (value != null) {
-                    _saveProfile(profile, unitSystem: value);
+                    _saveProfile(profile, unitSystem: value, showSnackBar: true);
                     Navigator.pop(context);
                   }
                 },
               ),
               onTap: () {
-                _saveProfile(profile, unitSystem: UnitSystem.imperial);
+                _saveProfile(profile, unitSystem: UnitSystem.imperial, showSnackBar: true);
                 Navigator.pop(context);
               },
             ),
@@ -444,6 +487,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     profile,
                     restTimerDefault: seconds,
                     autoStartRestTimer: autoStart,
+                    showSnackBar: true,
                   );
                   Navigator.pop(context);
                 }
@@ -464,6 +508,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     UnitSystem? unitSystem,
     int? restTimerDefault,
     bool? autoStartRestTimer,
+    bool showSnackBar = false,
   }) async {
     final updated = UserProfile(
       id: profile.id,
@@ -481,7 +526,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Refresh the provider
     ref.invalidate(userProfileProvider);
 
-    if (mounted) {
+    // Only show snackbar when explicitly requested (not on every keystroke)
+    if (mounted && showSnackBar) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Profile updated'),
