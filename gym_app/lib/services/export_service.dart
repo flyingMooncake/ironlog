@@ -2,14 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../models/workout_session.dart';
+import '../models/workout_set.dart';
+import '../models/exercise.dart';
 import '../repositories/workout_repository.dart';
 import '../repositories/set_repository.dart';
 import '../repositories/exercise_repository.dart';
 import '../repositories/target_repository.dart';
 import '../repositories/user_repository.dart';
 import '../repositories/weight_history_repository.dart';
-import '../repositories/template_group_repository.dart';
-import '../repositories/template_repository.dart';
 
 class ExportService {
   final WorkoutRepository _workoutRepo = WorkoutRepository();
@@ -18,8 +19,6 @@ class ExportService {
   final TargetRepository _targetRepo = TargetRepository();
   final UserRepository _userRepo = UserRepository();
   final WeightHistoryRepository _weightHistoryRepo = WeightHistoryRepository();
-  final TemplateGroupRepository _templateGroupRepo = TemplateGroupRepository();
-  final TemplateRepository _templateRepo = TemplateRepository();
 
   /// Export all data to JSON format
   Future<Map<String, dynamic>> exportAllData() async {
@@ -158,66 +157,51 @@ class ExportService {
     );
   }
 
-  /// Export a single template group to JSON format
-  Future<Map<String, dynamic>> exportSingleGroup(int groupId) async {
-    final group = await _templateGroupRepo.getGroupById(groupId);
-    if (group == null) {
-      throw Exception('Group not found');
+  /// Import a single workout from JSON data
+  Future<int> importSingleWorkout(Map<String, dynamic> data) async {
+    // Validate data structure
+    if (!data.containsKey('workout_session') || !data.containsKey('workout_sets')) {
+      throw Exception('Invalid workout export format');
     }
 
-    final templates = await _templateRepo.getTemplatesByGroup(groupId);
+    final sessionData = data['workout_session'] as Map<String, dynamic>;
+    final setsData = data['workout_sets'] as List<dynamic>;
+    final exercisesData = data['exercises'] as List<dynamic>?;
 
-    // Get all template exercises and exercises used in this group
-    final allTemplateExercises = <Map<String, dynamic>>[];
-    final exerciseIds = <int>{};
+    // Import exercises if they don't exist
+    if (exercisesData != null) {
+      for (final exerciseData in exercisesData) {
+        final exerciseMap = exerciseData as Map<String, dynamic>;
+        final exerciseId = exerciseMap['id'] as int?;
 
-    for (final template in templates) {
-      for (final templateExercise in template.exercises) {
-        allTemplateExercises.add(templateExercise.toMap());
-        exerciseIds.add(templateExercise.exerciseId);
+        if (exerciseId != null) {
+          final existing = await _exerciseRepo.getExerciseById(exerciseId);
+          if (existing == null) {
+            // Exercise doesn't exist, create it
+            final exercise = Exercise.fromMap(exerciseMap);
+            await _exerciseRepo.createExercise(exercise);
+          }
+        }
       }
     }
 
-    // Get full exercise details
-    final exercises = <Map<String, dynamic>>[];
-    for (final exerciseId in exerciseIds) {
-      final exercise = await _exerciseRepo.getExerciseById(exerciseId);
-      if (exercise != null) {
-        exercises.add(exercise.toMap());
-      }
+    // Create workout session (without id to get a new one)
+    final sessionMap = Map<String, dynamic>.from(sessionData);
+    sessionMap.remove('id'); // Remove old ID to generate new one
+
+    final session = WorkoutSession.fromMap(sessionMap);
+    final newSessionId = await _workoutRepo.createWorkoutSession(session);
+
+    // Create workout sets with new session ID
+    for (final setData in setsData) {
+      final setMap = Map<String, dynamic>.from(setData as Map<String, dynamic>);
+      setMap.remove('id'); // Remove old ID
+      setMap['session_id'] = newSessionId; // Set new session ID
+
+      final set = WorkoutSet.fromMap(setMap);
+      await _setRepo.createSet(set);
     }
 
-    return {
-      'export_date': DateTime.now().toIso8601String(),
-      'version': '1.0.0',
-      'template_group': group.toMap(),
-      'workout_templates': templates.map((template) => template.toMap()).toList(),
-      'template_exercises': allTemplateExercises,
-      'exercises': exercises,
-    };
-  }
-
-  /// Export a single template group to JSON file and share
-  Future<void> exportAndShareSingleGroup(int groupId) async {
-    final data = await exportSingleGroup(groupId);
-    final jsonString = const JsonEncoder.withIndent('  ').convert(data);
-
-    // Get directory for saving
-    final directory = await getApplicationDocumentsDirectory();
-    final group = await _templateGroupRepo.getGroupById(groupId);
-    final groupName = group?.name ?? 'group';
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-    final fileName = 'ironlog_${groupName.replaceAll(' ', '_').toLowerCase()}_$timestamp.json';
-    final filePath = '${directory.path}/$fileName';
-
-    // Write to file
-    final file = File(filePath);
-    await file.writeAsString(jsonString);
-
-    await Share.shareXFiles(
-      [XFile(filePath)],
-      subject: 'IronLog Group Export - $groupName',
-      text: 'My template group: $groupName',
-    );
+    return newSessionId;
   }
 }

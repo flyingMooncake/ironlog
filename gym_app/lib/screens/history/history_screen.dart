@@ -121,6 +121,197 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     notesController.dispose();
   }
 
+  void _addWorkoutOnDate(DateTime date) async {
+    final nameController = TextEditingController();
+    TimeOfDay startTime = TimeOfDay.now();
+    TimeOfDay? endTime;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text(
+            'Add Workout',
+            style: TextStyle(color: AppColors.textPrimary),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'Workout Name',
+                    labelStyle: const TextStyle(color: AppColors.textSecondary),
+                    filled: true,
+                    fillColor: AppColors.surfaceElevated,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  title: const Text('Start Time', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  subtitle: Text(
+                    startTime.format(context),
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  trailing: const Icon(Icons.access_time, color: AppColors.primary),
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: startTime,
+                      builder: (context, child) {
+                        return Theme(
+                          data: ThemeData.dark().copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: AppColors.primary,
+                              surface: AppColors.surface,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (time != null) {
+                      setState(() {
+                        startTime = time;
+                      });
+                    }
+                  },
+                  tileColor: AppColors.surfaceElevated,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  title: const Text('End Time (optional)', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  subtitle: Text(
+                    endTime?.format(context) ?? 'Not set',
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  trailing: endTime != null
+                      ? IconButton(
+                          icon: const Icon(Icons.close, color: AppColors.error, size: 20),
+                          onPressed: () {
+                            setState(() {
+                              endTime = null;
+                            });
+                          },
+                        )
+                      : const Icon(Icons.access_time, color: AppColors.primary),
+                  onTap: () async {
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: endTime ?? TimeOfDay.fromDateTime(
+                        DateTime(date.year, date.month, date.day, startTime.hour, startTime.minute).add(const Duration(hours: 1)),
+                      ),
+                      builder: (context, child) {
+                        return Theme(
+                          data: ThemeData.dark().copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: AppColors.primary,
+                              surface: AppColors.surface,
+                            ),
+                          ),
+                          child: child!,
+                        );
+                      },
+                    );
+                    if (time != null) {
+                      setState(() {
+                        endTime = time;
+                      });
+                    }
+                  },
+                  tileColor: AppColors.surfaceElevated,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Create', style: TextStyle(color: AppColors.primary)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true) {
+      try {
+        final repo = ref.read(workoutRepositoryProvider);
+
+        // Create start and end DateTime
+        final startDateTime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          startTime.hour,
+          startTime.minute,
+        );
+
+        DateTime? endDateTime;
+        int? duration;
+        if (endTime != null) {
+          endDateTime = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            endTime!.hour,
+            endTime!.minute,
+          );
+
+          // If end time is before start time, assume it's the next day
+          if (endDateTime.isBefore(startDateTime)) {
+            endDateTime = endDateTime.add(const Duration(days: 1));
+          }
+
+          duration = endDateTime.difference(startDateTime).inMinutes;
+        }
+
+        // Create new workout session
+        final newWorkout = WorkoutSession(
+          name: nameController.text.isEmpty ? 'Workout' : nameController.text,
+          startedAt: startDateTime,
+          finishedAt: endDateTime,
+          durationMinutes: duration,
+          totalVolume: 0,
+        );
+
+        final workoutId = await repo.createWorkoutSession(newWorkout);
+
+        if (!mounted) return;
+
+        // Refresh the list
+        ref.invalidate(workoutSessionsByDateProvider(_selectedDay!));
+        ref.invalidate(workoutSessionsGroupedProvider);
+
+        // Navigate to edit workout screen
+        context.push('/edit-workout/$workoutId');
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating workout: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+
+    nameController.dispose();
+  }
+
   void _deleteWorkout(WorkoutSession workout) async {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
@@ -207,6 +398,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ],
         ),
       ),
+      floatingActionButton: _selectedDay != null
+          ? FloatingActionButton(
+              onPressed: () => _addWorkoutOnDate(_selectedDay!),
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+              tooltip: 'Add workout on this date',
+            )
+          : null,
     );
   }
 

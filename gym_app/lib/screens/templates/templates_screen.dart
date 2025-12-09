@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../core/theme/colors.dart';
 import '../../models/workout_template.dart';
 import '../../models/template_group.dart';
@@ -8,7 +11,7 @@ import '../../providers/template_provider.dart';
 import '../../repositories/template_repository.dart';
 import '../../repositories/template_group_repository.dart';
 import '../../services/haptic_service.dart';
-import '../../services/export_service.dart';
+import '../../services/favorites_service.dart';
 import 'package:intl/intl.dart';
 import 'template_analysis_screen.dart';
 
@@ -21,6 +24,26 @@ class TemplatesScreen extends ConsumerStatefulWidget {
 
 class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
   final Set<int?> _expandedGroups = {}; // null for ungrouped
+  Set<int> _favoriteGroupIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    final favorites = await FavoritesService.instance.getFavorites();
+    setState(() {
+      _favoriteGroupIds = favorites;
+    });
+  }
+
+  Future<void> _toggleFavorite(int groupId) async {
+    await FavoritesService.instance.toggleFavorite(groupId);
+    await _loadFavorites();
+    HapticService.instance.light();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +143,7 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
 
   Widget _buildGroupSection(BuildContext context, TemplateGroup group, List<WorkoutTemplate> templates) {
     final isExpanded = _expandedGroups.contains(group.id);
+    final isFavorite = _favoriteGroupIds.contains(group.id);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -182,6 +206,14 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                         ],
                       ),
                     ),
+                    IconButton(
+                      icon: Icon(
+                        isFavorite ? Icons.star : Icons.star_border,
+                        color: isFavorite ? AppColors.warning : AppColors.textMuted,
+                      ),
+                      onPressed: () => _toggleFavorite(group.id!),
+                      tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                    ),
                     PopupMenuButton(
                       icon: const Icon(Icons.more_vert, color: AppColors.textMuted),
                       color: AppColors.surface,
@@ -200,9 +232,9 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                           value: 'export',
                           child: const Row(
                             children: [
-                              Icon(Icons.download, color: AppColors.primary, size: 20),
+                              Icon(Icons.upload, color: AppColors.info, size: 20),
                               SizedBox(width: 12),
-                              Text('Export Group', style: TextStyle(color: AppColors.textPrimary)),
+                              Text('Export', style: TextStyle(color: AppColors.textPrimary)),
                             ],
                           ),
                         ),
@@ -221,10 +253,10 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                       onSelected: (value) {
                         if (value == 'rename') {
                           _renameGroup(context, group);
-                        } else if (value == 'export') {
-                          _exportGroup(context, group);
                         } else if (value == 'delete') {
                           _deleteGroup(context, group);
+                        } else if (value == 'export') {
+                          _exportGroup(context, group, templates);
                         }
                       },
                     ),
@@ -1057,42 +1089,163 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
     descriptionController.dispose();
   }
 
-  void _exportGroup(BuildContext context, TemplateGroup group) async {
-    if (group.id == null) return;
-
+  void _exportGroup(BuildContext context, TemplateGroup group, List<WorkoutTemplate> templates) async {
     try {
-      HapticService.instance.medium();
+      // Create export data
+      final exportData = {
+        'group': {
+          'name': group.name,
+          'orderIndex': group.orderIndex,
+        },
+        'templates': templates.map((t) => {
+          'name': t.name,
+          'description': t.description,
+          'orderInGroup': t.orderInGroup,
+          'exercises': t.exercises.map((e) => e.toMap()).toList(),
+        }).toList(),
+        'exportedAt': DateTime.now().toIso8601String(),
+        'exportedFrom': 'IronLog',
+      };
 
-      // Show loading indicator
+      final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
+      final fileName = '${group.name.replaceAll(' ', '_')}_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.json';
+
+      // Share the JSON file
+      await Share.shareXFiles(
+        [XFile.fromData(
+          utf8.encode(jsonString),
+          mimeType: 'application/json',
+          name: fileName,
+        )],
+        subject: 'IronLog Group Export: ${group.name}',
+      );
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Exporting group...'),
-            duration: Duration(seconds: 1),
+            content: Text('Group exported successfully'),
+            backgroundColor: AppColors.success,
           ),
         );
       }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error exporting group: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 
-      final exportService = ExportService();
-      await exportService.exportAndShareSingleGroup(group.id!);
+  void _importGroup(BuildContext context) async {
+    try {
+      // Pick JSON file
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      if (file.bytes == null) {
+        throw Exception('Could not read file');
+      }
+
+      final jsonString = utf8.decode(file.bytes!);
+      final data = jsonDecode(jsonString) as Map<String, dynamic>;
+
+      // Validate data structure
+      if (!data.containsKey('group') || !data.containsKey('templates')) {
+        throw Exception('Invalid group export file');
+      }
+
+      final groupData = data['group'] as Map<String, dynamic>;
+      final templatesData = data['templates'] as List<dynamic>;
+
+      // Show confirmation dialog
+      final groupName = groupData['name'] as String;
+      final templateCount = templatesData.length;
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text(
+            'Import Group',
+            style: TextStyle(color: AppColors.textPrimary),
+          ),
+          content: Text(
+            'Import group "$groupName" with $templateCount template${templateCount == 1 ? '' : 's'}?',
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Import', style: TextStyle(color: AppColors.primary)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+
+      // Create group
+      final groupRepo = ref.read(templateGroupRepositoryProvider);
+      final newGroup = TemplateGroup(
+        name: groupName,
+        orderIndex: groupData['orderIndex'] as int? ?? 0,
+      );
+      final groupId = await groupRepo.createGroup(newGroup);
+
+      // Create templates
+      final templateRepo = ref.read(templateRepositoryProvider);
+      for (final templateData in templatesData) {
+        final templateMap = templateData as Map<String, dynamic>;
+
+        // Convert exercise maps to TemplateExercise objects
+        final exercisesData = (templateMap['exercises'] as List<dynamic>);
+        final exercises = exercisesData.map((e) {
+          final exerciseMap = e as Map<String, dynamic>;
+          return TemplateExercise.fromMap(exerciseMap);
+        }).toList();
+
+        final template = WorkoutTemplate(
+          name: templateMap['name'] as String,
+          description: templateMap['description'] as String?,
+          groupId: groupId,
+          orderInGroup: templateMap['orderInGroup'] as int? ?? 0,
+          exercises: exercises,
+        );
+
+        await templateRepo.createTemplate(template);
+      }
+
+      // Refresh providers
+      ref.invalidate(allTemplatesProvider);
+      ref.invalidate(allTemplateGroupsProvider);
 
       if (context.mounted) {
         HapticService.instance.success();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Exported "${group.name}"'),
+            content: Text('Imported group "$groupName" with $templateCount template${templateCount == 1 ? '' : 's'}'),
             backgroundColor: AppColors.success,
           ),
         );
-        // Navigate back after successful export
-        Navigator.of(context).pop();
       }
     } catch (e) {
       if (context.mounted) {
-        HapticService.instance.error();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to export: $e'),
+            content: Text('Error importing group: $e'),
             backgroundColor: AppColors.error,
           ),
         );

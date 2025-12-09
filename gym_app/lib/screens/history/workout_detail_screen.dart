@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/colors.dart';
 import '../../core/utils/calculations.dart';
 import '../../providers/workout_provider.dart';
@@ -22,6 +25,102 @@ class WorkoutDetailScreen extends ConsumerStatefulWidget {
 class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
   final ExportService _exportService = ExportService();
   bool _isExporting = false;
+
+  Future<void> _shareWorkout() async {
+    final workoutDetailsAsync = ref.read(workoutDetailsProvider(widget.workoutId));
+
+    workoutDetailsAsync.whenData((details) {
+      if (details == null) return;
+
+      final session = details.session;
+      final exercises = details.exercises;
+
+      // Build plain text workout
+      final buffer = StringBuffer();
+
+      // Header
+      buffer.writeln('🏋️ ${session.name ?? "Workout"}');
+      buffer.writeln('📅 ${DateFormat('EEEE, MMMM d, y').format(session.startedAt)}');
+      buffer.writeln('⏱️ ${session.durationMinutes ?? 0} minutes');
+      buffer.writeln('💪 ${session.totalVolume?.toStringAsFixed(0) ?? '0'} kg total volume');
+
+      if (session.notes != null && session.notes!.isNotEmpty) {
+        buffer.writeln('\n📝 Notes: ${session.notes}');
+      }
+
+      buffer.writeln('\n${'=' * 40}');
+
+      // Exercises
+      for (int i = 0; i < exercises.length; i++) {
+        final exerciseData = exercises[i];
+        final exercise = exerciseData.exercise;
+        final sets = exerciseData.sets;
+
+        buffer.writeln('\n${i + 1}. ${exercise.name}');
+        buffer.writeln('   ${exercise.primaryMuscle.displayName}');
+
+        // Calculate exercise stats
+        double exerciseVolume = 0;
+        double? best1RM;
+        for (final set in sets) {
+          if (!set.isWarmup) {
+            exerciseVolume += set.volume;
+            if (set.weight != null && set.reps != null) {
+              final estimated1RM = calculateEpley1RM(set.weight!, set.reps!);
+              if (best1RM == null || estimated1RM > best1RM) {
+                best1RM = estimated1RM;
+              }
+            }
+          }
+        }
+
+        buffer.writeln('   Volume: ${exerciseVolume.toStringAsFixed(0)} kg');
+        if (best1RM != null) {
+          buffer.writeln('   Est. 1RM: ${best1RM.toStringAsFixed(0)} kg');
+        }
+
+        buffer.writeln();
+
+        // Sets
+        for (int j = 0; j < sets.length; j++) {
+          final set = sets[j];
+          final setNum = j + 1;
+
+          String setLine = '   Set $setNum: ';
+
+          if (set.weight != null && set.reps != null) {
+            setLine += '${set.weight!.toStringAsFixed(1)} kg × ${set.reps} reps';
+          } else if (set.reps != null) {
+            setLine += '${set.reps} reps';
+          } else if (set.durationSeconds != null) {
+            setLine += '${set.durationSeconds}s';
+          } else {
+            setLine += '-';
+          }
+
+          if (set.isWarmup) {
+            setLine += ' (warmup)';
+          }
+          if (set.rpe == 10) {
+            setLine += ' 🔥 PR!';
+          }
+
+          buffer.writeln(setLine);
+        }
+      }
+
+      buffer.writeln('\n${'=' * 40}');
+      buffer.writeln('\nShared from IronLog 💪');
+
+      final text = buffer.toString();
+
+      // Share the text
+      Share.share(
+        text,
+        subject: session.name ?? 'Workout',
+      );
+    });
+  }
 
   Future<void> _exportWorkout() async {
     setState(() => _isExporting = true);
@@ -60,6 +159,18 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              context.push('/edit-workout/${widget.workoutId}');
+            },
+            tooltip: 'Edit workout',
+          ),
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: _shareWorkout,
+            tooltip: 'Share workout as text',
+          ),
+          IconButton(
             icon: _isExporting
                 ? const SizedBox(
                     width: 20,
@@ -71,7 +182,7 @@ class _WorkoutDetailScreenState extends ConsumerState<WorkoutDetailScreen> {
                   )
                 : const Icon(Icons.ios_share),
             onPressed: _isExporting ? null : _exportWorkout,
-            tooltip: 'Export workout',
+            tooltip: 'Export workout as JSON',
           ),
         ],
       ),

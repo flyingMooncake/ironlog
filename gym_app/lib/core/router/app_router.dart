@@ -7,6 +7,7 @@ import '../../screens/exercises/exercise_progress_screen.dart';
 import '../../screens/workout/active_workout_screen.dart';
 import '../../screens/history/history_screen.dart';
 import '../../screens/history/workout_detail_screen.dart';
+import '../../screens/history/edit_workout_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/profile/bodyweight_screen.dart';
 import '../../screens/profile/body_measurements_screen.dart';
@@ -46,6 +47,15 @@ class AppRouter {
           final id = int.parse(state.pathParameters['id']!);
           return MaterialPage(
             child: WorkoutDetailScreen(workoutId: id),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/edit-workout/:id',
+        pageBuilder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return MaterialPage(
+            child: EditWorkoutScreen(workoutId: id),
           );
         },
       ),

@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/colors.dart';
 import '../../services/export_service.dart';
+import '../../providers/workout_provider.dart';
 
 class ExportScreen extends ConsumerStatefulWidget {
   const ExportScreen({super.key});
@@ -14,6 +18,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
   final ExportService _exportService = ExportService();
   bool _isLoading = true;
   bool _isExporting = false;
+  bool _isImporting = false;
   Map<String, int> _stats = {};
   int _exportSize = 0;
 
@@ -96,10 +101,108 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                   _buildExportSizeCard(),
                   const SizedBox(height: 32),
                   _buildExportButton(),
+                  const SizedBox(height: 16),
+                  _buildImportButton(),
                 ],
               ),
             ),
     );
+  }
+
+  Future<void> _importWorkout() async {
+    setState(() => _isImporting = true);
+    try {
+      // Pick JSON file
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result == null || result.files.isEmpty) {
+        setState(() => _isImporting = false);
+        return;
+      }
+
+      final file = result.files.first;
+      if (file.bytes == null) {
+        throw Exception('Could not read file');
+      }
+
+      final jsonString = utf8.decode(file.bytes!);
+      final data = jsonDecode(jsonString) as Map<String, dynamic>;
+
+      // Validate it's a workout export (not full data export)
+      if (data.containsKey('workout_session') && data.containsKey('workout_sets')) {
+        // Single workout import
+        final sessionData = data['workout_session'] as Map<String, dynamic>;
+        final workoutName = sessionData['name'] ?? 'Imported Workout';
+
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: const Text(
+              'Import Workout',
+              style: TextStyle(color: AppColors.textPrimary),
+            ),
+            content: Text(
+              'Import workout "$workoutName"?',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Import', style: TextStyle(color: AppColors.primary)),
+              ),
+            ],
+          ),
+        );
+
+        if (confirmed != true) {
+          setState(() => _isImporting = false);
+          return;
+        }
+
+        final workoutId = await _exportService.importSingleWorkout(data);
+
+        // Refresh providers
+        ref.invalidate(allWorkoutSessionsProvider);
+        ref.invalidate(workoutSessionsGroupedProvider);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Imported workout "$workoutName"'),
+              backgroundColor: AppColors.success,
+              action: SnackBarAction(
+                label: 'View',
+                textColor: Colors.white,
+                onPressed: () {
+                  context.push('/workout-detail/$workoutId');
+                },
+              ),
+            ),
+          );
+        }
+      } else {
+        throw Exception('Invalid workout file format. Please select a workout export file.');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error importing workout: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isImporting = false);
+    }
   }
 
   Widget _buildInfoCard() {
@@ -322,14 +425,45 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                   strokeWidth: 2,
                 ),
               )
-            : const Icon(Icons.download),
+            : const Icon(Icons.upload),
         label: Text(
-          _isExporting ? 'Exporting...' : 'Export Data',
+          _isExporting ? 'Exporting...' : 'Export All Data',
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImportButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _isImporting ? null : _importWorkout,
+        icon: _isImporting
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Icon(Icons.download),
+        label: Text(
+          _isImporting ? 'Importing...' : 'Import Workout',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          side: const BorderSide(color: AppColors.primary, width: 2),
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

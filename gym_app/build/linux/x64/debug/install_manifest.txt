@@ -13,7 +13,6 @@
 /home/water/ironlog/gym_app/build/linux/x64/debug/bundle/data/flutter_assets/assets/icon/splash.png
 /home/water/ironlog/gym_app/build/linux/x64/debug/bundle/data/flutter_assets/assets/icon/applogo.png
 /home/water/ironlog/gym_app/build/linux/x64/debug/bundle/data/flutter_assets/assets/icon/pubspec.yaml
-/home/water/ironlog/gym_app/build/linux/x64/debug/bundle/data/flutter_assets/assets/icon/icon.iml
 /home/water/ironlog/gym_app/build/linux/x64/debug/bundle/data/flutter_assets/assets/icon/icon.png
 /home/water/ironlog/gym_app/build/linux/x64/debug/bundle/data/flutter_assets/assets/icon/pubspec.lock
 /home/water/ironlog/gym_app/build/linux/x64/debug/bundle/data/flutter_assets/assets/icon/generate_icons.py
