@@ -5,6 +5,7 @@ class Schema {
       weight REAL,
       height REAL,
       age INTEGER,
+      bfp_percentage REAL,
       unit_system TEXT DEFAULT 'metric',
       rest_timer_default INTEGER DEFAULT 90,
       auto_start_rest_timer INTEGER DEFAULT 1,

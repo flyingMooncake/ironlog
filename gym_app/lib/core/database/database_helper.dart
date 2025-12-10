@@ -69,6 +69,12 @@ class DatabaseHelper {
     }
 
     try {
+      await db.execute('ALTER TABLE user_profile ADD COLUMN bfp_percentage REAL');
+    } catch (e) {
+      // Column already exists
+    }
+
+    try {
       await db.execute('ALTER TABLE workout_sets ADD COLUMN is_drop_set INTEGER DEFAULT 0');
     } catch (e) {
       // Column already exists

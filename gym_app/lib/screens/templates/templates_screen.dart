@@ -8,6 +8,7 @@ import '../../core/theme/colors.dart';
 import '../../models/workout_template.dart';
 import '../../models/template_group.dart';
 import '../../providers/template_provider.dart';
+import '../../providers/exercise_provider.dart';
 import '../../repositories/template_repository.dart';
 import '../../repositories/template_group_repository.dart';
 import '../../services/haptic_service.dart';
@@ -229,6 +230,16 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                           ),
                         ),
                         PopupMenuItem<String>(
+                          value: 'share',
+                          child: const Row(
+                            children: [
+                              Icon(Icons.share, color: AppColors.primary, size: 20),
+                              SizedBox(width: 12),
+                              Text('Share', style: TextStyle(color: AppColors.textPrimary)),
+                            ],
+                          ),
+                        ),
+                        PopupMenuItem<String>(
                           value: 'export',
                           child: const Row(
                             children: [
@@ -255,6 +266,8 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                           _renameGroup(context, group);
                         } else if (value == 'delete') {
                           _deleteGroup(context, group);
+                        } else if (value == 'share') {
+                          _shareGroup(context, group, templates);
                         } else if (value == 'export') {
                           _exportGroup(context, group, templates);
                         }
@@ -1005,69 +1018,147 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
   void _duplicateTemplate(BuildContext context, WorkoutTemplate template) async {
     final nameController = TextEditingController(text: '${template.name} (Copy)');
     final descriptionController = TextEditingController(text: template.description ?? '');
+    final groupsAsync = ref.read(allTemplateGroupsProvider);
+    final groups = groupsAsync.value ?? [];
+    int? selectedGroupId = template.groupId;
 
-    final confirmed = await showDialog<bool>(
+    final result = await showDialog<Map<String, dynamic>?>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          'Duplicate Template',
-          style: TextStyle(color: AppColors.textPrimary),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              style: const TextStyle(color: AppColors.textPrimary),
-              decoration: InputDecoration(
-                labelText: 'New Template Name',
-                labelStyle: const TextStyle(color: AppColors.textSecondary),
-                filled: true,
-                fillColor: AppColors.surfaceElevated,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          title: const Text(
+            'Duplicate Template',
+            style: TextStyle(color: AppColors.textPrimary),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  decoration: InputDecoration(
+                    labelText: 'New Template Name',
+                    labelStyle: const TextStyle(color: AppColors.textSecondary),
+                    filled: true,
+                    fillColor: AppColors.surfaceElevated,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  style: const TextStyle(color: AppColors.textPrimary),
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Description (optional)',
+                    labelStyle: const TextStyle(color: AppColors.textSecondary),
+                    filled: true,
+                    fillColor: AppColors.surfaceElevated,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                if (groups.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Group (optional)',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int?>(
+                        value: selectedGroupId,
+                        isExpanded: true,
+                        dropdownColor: AppColors.surface,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        hint: const Text(
+                          'No group',
+                          style: TextStyle(color: AppColors.textMuted),
+                        ),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text(
+                              'No group',
+                              style: TextStyle(color: AppColors.textPrimary),
+                            ),
+                          ),
+                          ...groups.map((group) => DropdownMenuItem<int?>(
+                            value: group.id,
+                            child: Text(
+                              group.name,
+                              style: const TextStyle(color: AppColors.textPrimary),
+                            ),
+                          )),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            selectedGroupId = value;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: descriptionController,
-              style: const TextStyle(color: AppColors.textPrimary),
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: 'Description (optional)',
-                labelStyle: const TextStyle(color: AppColors.textSecondary),
-                filled: true,
-                fillColor: AppColors.surfaceElevated,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, {
+                'name': nameController.text,
+                'description': descriptionController.text,
+                'groupId': selectedGroupId,
+              }),
+              child: const Text('Duplicate', style: TextStyle(color: AppColors.primary)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Duplicate', style: TextStyle(color: AppColors.primary)),
-          ),
-        ],
       ),
     );
 
-    if (confirmed == true && template.id != null) {
+    if (result != null && template.id != null) {
+      // Create new exercises without IDs to avoid conflicts with existing exercises
+      final newExercises = template.exercises.map((exercise) {
+        return TemplateExercise(
+          id: null,  // Remove ID to create new entries
+          templateId: 0,  // Will be set by repository
+          exerciseId: exercise.exerciseId,
+          orderIndex: exercise.orderIndex,
+          sets: exercise.sets,
+          targetReps: exercise.targetReps,
+          targetWeight: exercise.targetWeight,
+          restSeconds: exercise.restSeconds,
+          notes: exercise.notes,
+        );
+      }).toList();
+
       final newTemplate = WorkoutTemplate(
-        name: nameController.text,
-        description: descriptionController.text.isEmpty ? null : descriptionController.text,
-        groupId: template.groupId,
-        exercises: template.exercises,
+        name: result['name'],
+        description: result['description'].isEmpty ? null : result['description'],
+        groupId: result['groupId'],
+        exercises: newExercises,
       );
 
       final repo = ref.read(templateRepositoryProvider);
@@ -1087,6 +1178,97 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
 
     nameController.dispose();
     descriptionController.dispose();
+  }
+
+  void _shareGroup(BuildContext context, TemplateGroup group, List<WorkoutTemplate> templates) async {
+    try {
+      final buffer = StringBuffer();
+      final exerciseRepo = ref.read(exerciseRepositoryProvider);
+
+      // Header
+      buffer.writeln('📋 ${group.name}');
+      buffer.writeln('📊 ${templates.length} workout template${templates.length != 1 ? 's' : ''}');
+      buffer.writeln('\n${'=' * 40}');
+
+      // Templates
+      for (int i = 0; i < templates.length; i++) {
+        final template = templates[i];
+
+        buffer.writeln('\n${i + 1}. ${template.name}');
+
+        if (template.description != null && template.description!.isNotEmpty) {
+          buffer.writeln('   📝 ${template.description}');
+        }
+
+        buffer.writeln('   Exercises: ${template.exercises.length}');
+        buffer.writeln();
+
+        // Load and display exercises
+        for (int j = 0; j < template.exercises.length; j++) {
+          final templateExercise = template.exercises[j];
+          final exercise = await exerciseRepo.getExerciseById(templateExercise.exerciseId);
+
+          if (exercise != null) {
+            String exerciseLine = '   ${j + 1}. ${exercise.name}';
+
+            // Add exercise details
+            final details = <String>[];
+            if (templateExercise.sets > 0) {
+              details.add('${templateExercise.sets} sets');
+            }
+            if (templateExercise.targetReps != null) {
+              details.add('${templateExercise.targetReps} reps');
+            }
+            if (templateExercise.targetWeight != null) {
+              details.add('${templateExercise.targetWeight} kg');
+            }
+            if (templateExercise.restSeconds != null) {
+              final minutes = templateExercise.restSeconds! ~/ 60;
+              final seconds = templateExercise.restSeconds! % 60;
+              if (minutes > 0) {
+                details.add('${minutes}m${seconds > 0 ? '${seconds}s' : ''} rest');
+              } else {
+                details.add('${seconds}s rest');
+              }
+            }
+
+            if (details.isNotEmpty) {
+              exerciseLine += ' - ${details.join(', ')}';
+            }
+
+            buffer.writeln(exerciseLine);
+
+            if (templateExercise.notes != null && templateExercise.notes!.isNotEmpty) {
+              buffer.writeln('      💬 ${templateExercise.notes}');
+            }
+          }
+        }
+      }
+
+      buffer.writeln('\n${'=' * 40}');
+      buffer.writeln('\nShared from IronLog 💪');
+
+      final text = buffer.toString();
+
+      // Share the text
+      Share.share(
+        text,
+        subject: 'IronLog Group: ${group.name}',
+      );
+
+      if (context.mounted) {
+        HapticService.instance.light();
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sharing group: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   void _exportGroup(BuildContext context, TemplateGroup group, List<WorkoutTemplate> templates) async {

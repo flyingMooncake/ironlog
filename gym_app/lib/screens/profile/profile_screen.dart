@@ -23,6 +23,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _weightController = TextEditingController();
   final _heightController = TextEditingController();
   final _ageController = TextEditingController();
+  final _bfpController = TextEditingController();
   int _updateCount = 0;
 
   @override
@@ -30,6 +31,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _weightController.dispose();
     _heightController.dispose();
     _ageController.dispose();
+    _bfpController.dispose();
     super.dispose();
   }
 
@@ -72,6 +74,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
     if (_ageController.text.isEmpty && profile.age != null) {
       _ageController.text = profile.age.toString();
+    }
+    if (_bfpController.text.isEmpty && profile.bfpPercentage != null) {
+      _bfpController.text = profile.bfpPercentage.toString();
     }
 
     return SingleChildScrollView(
@@ -146,6 +151,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             controller: _ageController,
             isDecimal: false,
             onSubmitted: () => _saveProfile(profile, age: int.tryParse(_ageController.text), showSnackBar: true),
+          ),
+          const SizedBox(height: 16),
+          _buildNumberField(
+            label: 'Body Fat %',
+            controller: _bfpController,
+            isDecimal: true,
+            onSubmitted: () => _saveProfile(profile, bfpPercentage: double.tryParse(_bfpController.text), showSnackBar: true),
           ),
         ],
       ),
@@ -520,6 +532,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     double? weight,
     double? height,
     int? age,
+    double? bfpPercentage,
     UnitSystem? unitSystem,
     int? restTimerDefault,
     bool? autoStartRestTimer,
@@ -530,6 +543,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       weight: weight ?? profile.weight,
       height: height ?? profile.height,
       age: age ?? profile.age,
+      bfpPercentage: bfpPercentage ?? profile.bfpPercentage,
       unitSystem: unitSystem ?? profile.unitSystem,
       restTimerDefault: restTimerDefault ?? profile.restTimerDefault,
       autoStartRestTimer: autoStartRestTimer ?? profile.autoStartRestTimer,
