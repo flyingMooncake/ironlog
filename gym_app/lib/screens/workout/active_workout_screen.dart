@@ -89,8 +89,47 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> with 
     final saved = await WorkoutPersistenceService.loadWorkoutDraft();
     if (saved == null) return;
 
-    // Don't auto-restore, let user decide
-    // The data is there if they navigate back
+    // Auto-restore workout state from background
+    try {
+      final exerciseRepo = ref.read(exerciseRepositoryProvider);
+
+      // Restore workout start time
+      final startTimeStr = saved['startTime'] as String?;
+      if (startTimeStr != null) {
+        _workoutStartTime = DateTime.parse(startTimeStr);
+      }
+
+      // Restore notes
+      _workoutNotes = saved['notes'] as String? ?? '';
+
+      // Restore exercises and sets
+      final exercisesData = saved['exercises'] as List<dynamic>?;
+      if (exercisesData != null) {
+        for (final exerciseData in exercisesData) {
+          final exerciseId = exerciseData['exerciseId'] as int;
+          final exercise = await exerciseRepo.getExerciseById(exerciseId);
+
+          if (exercise != null) {
+            final setsData = exerciseData['sets'] as List<dynamic>;
+            final sets = setsData.map((setData) => WorkoutSetUI(
+              weight: setData['weight'] as double?,
+              reps: setData['reps'] as int?,
+              isWarmup: setData['isWarmup'] as bool? ?? false,
+            )).toList();
+
+            setState(() {
+              _workoutExercises.add(WorkoutExerciseUI(
+                exercise: exercise,
+                sets: sets,
+              ));
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // If restoration fails, just log and continue with empty workout
+      debugPrint('Failed to restore workout state: $e');
+    }
   }
 
   Future<void> _loadInitialData() async {

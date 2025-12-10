@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/haptic_service.dart';
 import '../services/workout_persistence_service.dart';
+import '../services/notification_service.dart';
 
 class RestTimerState {
   final int remainingSeconds;
@@ -68,13 +69,15 @@ class RestTimerNotifier extends StateNotifier<RestTimerState> {
     if (remainingSeconds > 0) {
       startTimer(remainingSeconds);
     } else {
-      // Timer already completed while backgrounded
+      // Timer already completed while backgrounded - notification already fired
       state = RestTimerState(
         remainingSeconds: 0,
         totalSeconds: totalSeconds,
         isRunning: false,
       );
       await WorkoutPersistenceService.clearTimerState();
+      // Clear the notification that already fired
+      NotificationService().cancelRestTimerNotification();
     }
   }
 
@@ -92,6 +95,9 @@ class RestTimerNotifier extends StateNotifier<RestTimerState> {
     // Save state for background restoration
     _saveTimerState();
 
+    // Schedule background notification
+    NotificationService().scheduleRestTimerNotification(seconds: seconds);
+
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (state.remainingSeconds > 0) {
         state = state.copyWith(
@@ -104,6 +110,8 @@ class RestTimerNotifier extends StateNotifier<RestTimerState> {
         state = state.copyWith(isRunning: false);
         _timer?.cancel();
         WorkoutPersistenceService.clearTimerState();
+        // Cancel notification since timer completed in foreground
+        NotificationService().cancelRestTimerNotification();
       }
     });
   }
@@ -120,6 +128,8 @@ class RestTimerNotifier extends StateNotifier<RestTimerState> {
   void pause() {
     _timer?.cancel();
     state = state.copyWith(isRunning: false);
+    // Cancel notification when paused
+    NotificationService().cancelRestTimerNotification();
   }
 
   void resume() {
@@ -136,6 +146,8 @@ class RestTimerNotifier extends StateNotifier<RestTimerState> {
       isRunning: false,
     );
     WorkoutPersistenceService.clearTimerState();
+    // Cancel notification when stopped
+    NotificationService().cancelRestTimerNotification();
   }
 
   void addTime(int seconds) {
@@ -143,6 +155,12 @@ class RestTimerNotifier extends StateNotifier<RestTimerState> {
       remainingSeconds: state.remainingSeconds + seconds,
       totalSeconds: state.totalSeconds + seconds,
     );
+    // Reschedule notification with updated time if timer is running
+    if (state.isRunning) {
+      NotificationService().scheduleRestTimerNotification(
+        seconds: state.remainingSeconds,
+      );
+    }
   }
 
   @override

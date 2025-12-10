@@ -21,6 +21,31 @@ class UserRepository {
     // Check if profile exists
     final existing = await getUserProfile();
 
+    // Check if weight has changed and update weight_history
+    if (existing != null &&
+        profile.weight != null &&
+        existing.weight != profile.weight) {
+      // Weight has changed, insert into weight_history
+      await db.insert(
+        'weight_history',
+        {
+          'weight': profile.weight,
+          'recorded_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } else if (existing == null && profile.weight != null) {
+      // New profile with weight, insert into weight_history
+      await db.insert(
+        'weight_history',
+        {
+          'weight': profile.weight,
+          'recorded_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
     if (existing == null) {
       // Create new profile
       return await db.insert(
@@ -63,8 +88,10 @@ class UserRepository {
       weight: profile.weight,
       height: profile.height,
       age: profile.age,
+      bfpPercentage: profile.bfpPercentage,
       unitSystem: unitSystem,
       restTimerDefault: profile.restTimerDefault,
+      autoStartRestTimer: profile.autoStartRestTimer,
     );
     return await saveUserProfile(updated);
   }
@@ -76,8 +103,10 @@ class UserRepository {
       weight: profile.weight,
       height: profile.height,
       age: profile.age,
+      bfpPercentage: profile.bfpPercentage,
       unitSystem: profile.unitSystem,
       restTimerDefault: seconds,
+      autoStartRestTimer: profile.autoStartRestTimer,
     );
     return await saveUserProfile(updated);
   }

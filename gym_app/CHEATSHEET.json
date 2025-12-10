@@ -1,0 +1,477 @@
+{
+  "project": "IronLog Gym App",
+  "version": "1.0.0",
+  "last_updated": "2025-12-10",
+  "tech_stack": {
+    "framework": "Flutter/Dart",
+    "state_management": "Riverpod 2.4.9",
+    "database": "SQLite (sqflite 2.3.2)",
+    "navigation": "GoRouter 13.2.0",
+    "key_packages": [
+      "share_plus: 7.2.1",
+      "file_picker: 6.0.0",
+      "intl: 0.18.0"
+    ]
+  },
+  "directory_structure": {
+    "lib/models": "Data models (13 total)",
+    "lib/repositories": "Database access layer (CRUD operations)",
+    "lib/providers": "Riverpod state management",
+    "lib/services": "Business logic (export, haptics, favorites)",
+    "lib/screens": "UI screens",
+    "lib/core/database": "DB schema & helper",
+    "lib/core/theme": "Colors & styling",
+    "lib/widgets": "Reusable components"
+  },
+  "features": {
+    "workout_templates": {
+      "main_screen": "lib/screens/templates/templates_screen.dart",
+      "editor_screen": "lib/screens/templates/template_editor_screen.dart",
+      "models": [
+        "lib/models/workout_template.dart",
+        "lib/models/template_group.dart"
+      ],
+      "repository": "lib/repositories/template_repository.dart",
+      "provider": "lib/providers/template_provider.dart",
+      "key_functions": {
+        "duplicate_template": {
+          "file": "lib/screens/templates/templates_screen.dart",
+          "lines": "1005-1161",
+          "description": "Duplicates template with group selector, removes exercise IDs to avoid conflicts"
+        },
+        "share_group": {
+          "file": "lib/screens/templates/templates_screen.dart",
+          "lines": "1175-1264",
+          "description": "Natural language share for template groups"
+        },
+        "export_group": {
+          "file": "lib/screens/templates/templates_screen.dart",
+          "lines": "1266-1324",
+          "description": "JSON export of template group"
+        },
+        "create_template_dialog": {
+          "file": "lib/screens/templates/templates_screen.dart",
+          "lines": "610-760",
+          "description": "Dialog for creating new template with group selection"
+        },
+        "create_template": {
+          "file": "lib/repositories/template_repository.dart",
+          "lines": "12-32",
+          "description": "Creates template + exercises in database"
+        },
+        "update_template": {
+          "file": "lib/repositories/template_repository.dart",
+          "lines": "82-110",
+          "description": "Updates existing template"
+        },
+        "delete_template": {
+          "file": "lib/repositories/template_repository.dart",
+          "lines": "113-120",
+          "description": "Deletes template from database"
+        }
+      }
+    },
+    "user_profile": {
+      "screen": "lib/screens/profile/profile_screen.dart",
+      "model": "lib/models/user_profile.dart",
+      "repository": "lib/repositories/user_repository.dart",
+      "provider": "lib/providers/user_provider.dart",
+      "fields": [
+        "id",
+        "weight",
+        "height",
+        "age",
+        "bfpPercentage",
+        "unitSystem",
+        "restTimerDefault",
+        "autoStartRestTimer"
+      ],
+      "key_functions": {
+        "personal_info_card": {
+          "file": "lib/screens/profile/profile_screen.dart",
+          "lines": "121-165",
+          "description": "UI card with weight, height, age, BFP% inputs"
+        },
+        "settings_card": {
+          "file": "lib/screens/profile/profile_screen.dart",
+          "lines": "222-283",
+          "description": "Settings list (unit system, rest timer, etc)"
+        },
+        "save_profile": {
+          "file": "lib/screens/profile/profile_screen.dart",
+          "lines": "530-588",
+          "description": "Saves profile changes to database"
+        },
+        "get_user_profile": {
+          "file": "lib/repositories/user_repository.dart",
+          "lines": "9-15",
+          "description": "Fetches user profile from database"
+        },
+        "save_user_profile": {
+          "file": "lib/repositories/user_repository.dart",
+          "lines": "18-40",
+          "description": "Creates or updates user profile"
+        }
+      }
+    },
+    "workout_history": {
+      "detail_screen": "lib/screens/history/workout_detail_screen.dart",
+      "models": [
+        "lib/models/workout_session.dart",
+        "lib/models/workout_set.dart"
+      ],
+      "key_functions": {
+        "share_workout": {
+          "file": "lib/screens/history/workout_detail_screen.dart",
+          "lines": "29-123",
+          "description": "Natural language share for completed workouts"
+        }
+      }
+    },
+    "exercises": {
+      "models": [
+        "lib/models/exercise.dart",
+        "lib/models/exercise_target.dart"
+      ],
+      "repository": "lib/repositories/exercise_repository.dart",
+      "provider": "lib/providers/exercise_provider.dart"
+    }
+  },
+  "database": {
+    "schema_file": "lib/core/database/schema.dart",
+    "helper_file": "lib/core/database/database_helper.dart",
+    "version": 1,
+    "tables": {
+      "user_profile": {
+        "schema_lines": "2-15",
+        "columns": [
+          "id",
+          "weight",
+          "height",
+          "age",
+          "bfp_percentage",
+          "unit_system",
+          "rest_timer_default",
+          "auto_start_rest_timer",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "workout_templates": {
+        "schema_lines": "108-128",
+        "columns": [
+          "id",
+          "name",
+          "description",
+          "group_id",
+          "order_in_group",
+          "created_at",
+          "last_used"
+        ]
+      },
+      "template_exercises": {
+        "schema_lines": "130-144",
+        "columns": [
+          "id",
+          "template_id",
+          "exercise_id",
+          "order_index",
+          "sets",
+          "target_reps",
+          "target_weight",
+          "rest_seconds",
+          "notes"
+        ]
+      },
+      "template_groups": {
+        "schema_lines": "108-115",
+        "columns": [
+          "id",
+          "name",
+          "order_index",
+          "created_at"
+        ]
+      }
+    },
+    "migrations": {
+      "location": "lib/core/database/database_helper.dart",
+      "function": "_onOpen",
+      "lines": "63-138",
+      "recent_migrations": [
+        {
+          "column": "bfp_percentage",
+          "table": "user_profile",
+          "lines": "71-75",
+          "type": "REAL",
+          "description": "Body fat percentage field"
+        },
+        {
+          "column": "auto_start_rest_timer",
+          "table": "user_profile",
+          "lines": "65-69",
+          "type": "INTEGER",
+          "description": "Auto-start rest timer toggle"
+        }
+      ]
+    }
+  },
+  "state_management": {
+    "type": "Riverpod",
+    "key_providers": {
+      "userProfileProvider": {
+        "file": "lib/providers/user_provider.dart",
+        "description": "User profile data"
+      },
+      "allTemplatesProvider": {
+        "file": "lib/providers/template_provider.dart",
+        "description": "All workout templates"
+      },
+      "allTemplateGroupsProvider": {
+        "file": "lib/providers/template_provider.dart",
+        "description": "All template groups"
+      },
+      "templateRepositoryProvider": {
+        "file": "lib/providers/template_provider.dart",
+        "description": "Template repository instance"
+      },
+      "exerciseRepositoryProvider": {
+        "file": "lib/providers/exercise_provider.dart",
+        "description": "Exercise repository instance"
+      }
+    },
+    "patterns": {
+      "refresh_provider": "ref.invalidate(providerName);",
+      "read_once": "ref.read(provider);",
+      "watch_changes": "ref.watch(provider);"
+    }
+  },
+  "theme": {
+    "file": "lib/core/theme/colors.dart",
+    "colors": [
+      "AppColors.background",
+      "AppColors.surface",
+      "AppColors.surfaceElevated",
+      "AppColors.primary",
+      "AppColors.textPrimary",
+      "AppColors.textSecondary",
+      "AppColors.textMuted",
+      "AppColors.success",
+      "AppColors.error",
+      "AppColors.warning"
+    ]
+  },
+  "common_tasks": {
+    "add_profile_field": {
+      "steps": [
+        {
+          "step": 1,
+          "action": "Update schema",
+          "file": "lib/core/database/schema.dart",
+          "lines": "2-15",
+          "description": "Add column to createUserProfile"
+        },
+        {
+          "step": 2,
+          "action": "Add migration",
+          "file": "lib/core/database/database_helper.dart",
+          "location": "_onOpen() function",
+          "description": "Add ALTER TABLE statement"
+        },
+        {
+          "step": 3,
+          "action": "Update model",
+          "file": "lib/models/user_profile.dart",
+          "changes": [
+            "Add field to class",
+            "Update constructor",
+            "Update fromMap() method",
+            "Update toMap() method"
+          ]
+        },
+        {
+          "step": 4,
+          "action": "Update repository",
+          "file": "lib/repositories/user_repository.dart",
+          "description": "Update all methods that create UserProfile instances"
+        },
+        {
+          "step": 5,
+          "action": "Update UI",
+          "file": "lib/screens/profile/profile_screen.dart",
+          "changes": [
+            "Add controller (lines 23-27)",
+            "Dispose controller (lines 30-36)",
+            "Initialize controller (lines 67-80)",
+            "Add input field (lines 121-165)",
+            "Update _saveProfile() (lines 530-588)"
+          ]
+        }
+      ]
+    },
+    "add_sharing_feature": {
+      "pattern_file": "lib/screens/history/workout_detail_screen.dart",
+      "pattern_lines": "29-123",
+      "steps": [
+        "Import share_plus package",
+        "Create StringBuffer for text",
+        "Build text with buffer.writeln()",
+        "Call Share.share(text, subject: 'Title')"
+      ],
+      "code_template": "import 'package:share_plus/share_plus.dart';\n\nfinal buffer = StringBuffer();\n// Build text\nShare.share(text, subject: 'Title');"
+    },
+    "add_json_export": {
+      "pattern_file": "lib/screens/templates/templates_screen.dart",
+      "pattern_lines": "1266-1324",
+      "steps": [
+        "Import dart:convert and share_plus",
+        "Create Map with data structure",
+        "Convert to JSON with JsonEncoder.withIndent",
+        "Share using Share.shareXFiles with XFile.fromData"
+      ]
+    }
+  },
+  "code_patterns": {
+    "dialog": {
+      "template": "showDialog<ReturnType>(\n  context: context,\n  builder: (context) => AlertDialog(\n    backgroundColor: AppColors.surface,\n    title: Text('Title', style: TextStyle(color: AppColors.textPrimary)),\n    content: /* content */,\n    actions: [\n      TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),\n      TextButton(onPressed: () => Navigator.pop(context, result), child: Text('OK')),\n    ],\n  ),\n);"
+    },
+    "snackbar": {
+      "template": "ScaffoldMessenger.of(context).showSnackBar(\n  SnackBar(\n    content: Text('Message'),\n    backgroundColor: AppColors.success,\n  ),\n);"
+    },
+    "database_insert": {
+      "template": "final db = await _dbHelper.database;\nfinal id = await db.insert(\n  'table_name',\n  object.toMap(),\n  conflictAlgorithm: ConflictAlgorithm.replace,\n);"
+    },
+    "navigation": {
+      "push": "context.push('/route');",
+      "pop": "context.pop();"
+    }
+  },
+  "recent_changes": {
+    "duplicate_template_bug_fix_v2": {
+      "date": "2025-12-10",
+      "issue": "copyWith(id: null) doesn't work due to ?? operator keeping original id",
+      "file": "lib/screens/templates/templates_screen.dart",
+      "lines": "1143-1155",
+      "fix": "Manually create new TemplateExercise objects instead of using copyWith to ensure id is null",
+      "note": "This properly copies all exercise data when duplicating templates"
+    },
+    "weight_history_sync": {
+      "date": "2025-12-10",
+      "feature": "Automatically sync profile weight changes to bodyweight tracker",
+      "file": "lib/repositories/user_repository.dart",
+      "lines": "24-47",
+      "description": "When user updates weight in profile, automatically inserts record into weight_history table",
+      "note": "Tracks weight changes over time for bodyweight tracking"
+    },
+    "create_exercise_in_template_editor": {
+      "date": "2025-12-10",
+      "feature": "Added Create new exercise button in template editor",
+      "file": "lib/screens/templates/template_editor_screen.dart",
+      "lines": "413-426",
+      "description": "Added + button next to search bar in exercise selector that opens CreateExerciseDialog",
+      "import_added": "lib/screens/exercises/exercises_screen.dart"
+    },
+    "duplicate_template_bug_fix": {
+      "date": "2025-12-10",
+      "issue": "Exercise IDs were copied, causing conflicts with ConflictAlgorithm.replace",
+      "file": "lib/screens/templates/templates_screen.dart",
+      "lines": "1128-1135",
+      "fix": "Remove exercise IDs with .copyWith(id: null) before creating duplicate",
+      "additional_feature": "Added group selection dropdown to duplicate dialog",
+      "superseded_by": "duplicate_template_bug_fix_v2"
+    },
+    "bfp_percentage_addition": {
+      "date": "2025-12-10",
+      "description": "Added Body Fat Percentage field to user profile",
+      "files_changed": [
+        {
+          "file": "lib/core/database/schema.dart",
+          "line": 8,
+          "change": "Added bfp_percentage column"
+        },
+        {
+          "file": "lib/core/database/database_helper.dart",
+          "lines": "71-75",
+          "change": "Added migration for existing databases"
+        },
+        {
+          "file": "lib/models/user_profile.dart",
+          "change": "Added bfpPercentage field"
+        },
+        {
+          "file": "lib/repositories/user_repository.dart",
+          "change": "Updated methods to preserve BFP value"
+        },
+        {
+          "file": "lib/screens/profile/profile_screen.dart",
+          "lines": "156-161",
+          "change": "Added UI input field"
+        }
+      ]
+    },
+    "group_share_feature": {
+      "date": "2025-12-10",
+      "description": "Added natural language share for template groups",
+      "file": "lib/screens/templates/templates_screen.dart",
+      "lines": "1175-1264",
+      "function": "_shareGroup()",
+      "pattern": "Similar to workout sharing, formats group as human-readable text"
+    }
+  },
+  "known_issues": {
+    "conflict_algorithm_replace": {
+      "issue": "ConflictAlgorithm.replace can overwrite existing data if IDs match",
+      "solution": "Always remove IDs (.copyWith(id: null)) before inserting duplicates",
+      "affected_areas": [
+        "Template duplication",
+        "Exercise copying"
+      ]
+    },
+    "controller_disposal": {
+      "issue": "TextEditingControllers must be disposed to prevent memory leaks",
+      "solution": "Always add controllers to dispose() method",
+      "pattern_file": "lib/screens/profile/profile_screen.dart",
+      "pattern_lines": "30-36"
+    }
+  },
+  "quick_reference": {
+    "when_you_need_to": {
+      "fix_template_bug": "templates_screen.dart lines 1005-1161",
+      "add_profile_field": "See common_tasks.add_profile_field",
+      "share_something": "workout_detail_screen.dart lines 29-123",
+      "export_json": "templates_screen.dart lines 1266-1324",
+      "update_database": "schema.dart + database_helper.dart (_onOpen migration)"
+    }
+  },
+  "file_relationships": {
+    "templates": {
+      "screen": "lib/screens/templates/templates_screen.dart",
+      "model": "lib/models/workout_template.dart",
+      "repository": "lib/repositories/template_repository.dart",
+      "provider": "lib/providers/template_provider.dart"
+    },
+    "template_groups": {
+      "screen": "lib/screens/templates/templates_screen.dart",
+      "model": "lib/models/template_group.dart",
+      "repository": "lib/repositories/template_group_repository.dart",
+      "provider": "lib/providers/template_provider.dart"
+    },
+    "user_profile": {
+      "screen": "lib/screens/profile/profile_screen.dart",
+      "model": "lib/models/user_profile.dart",
+      "repository": "lib/repositories/user_repository.dart",
+      "provider": "lib/providers/user_provider.dart"
+    },
+    "workouts": {
+      "screen": "lib/screens/history/workout_detail_screen.dart",
+      "model": "lib/models/workout_session.dart",
+      "repository": "lib/repositories/workout_repository.dart",
+      "provider": "lib/providers/workout_provider.dart"
+    },
+    "exercises": {
+      "screen": "lib/screens/exercises/exercise_screen.dart",
+      "model": "lib/models/exercise.dart",
+      "repository": "lib/repositories/exercise_repository.dart",
+      "provider": "lib/providers/exercise_provider.dart"
+    }
+  }
+}

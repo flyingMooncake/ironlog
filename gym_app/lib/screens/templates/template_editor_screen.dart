@@ -7,6 +7,7 @@ import '../../models/exercise.dart';
 import '../../providers/exercise_provider.dart';
 import '../../providers/template_provider.dart';
 import '../../services/haptic_service.dart';
+import '../exercises/exercises_screen.dart';
 
 class TemplateEditorScreen extends ConsumerStatefulWidget {
   final WorkoutTemplate template;
@@ -409,6 +410,20 @@ class _ExercisePickerDialogState extends ConsumerState<_ExercisePickerDialog> {
                 hintText: 'Search exercises...',
                 hintStyle: const TextStyle(color: AppColors.textMuted),
                 prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.add_circle, color: AppColors.primary),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => CreateExerciseDialog(
+                        onExerciseCreated: () {
+                          ref.invalidate(allExercisesProvider);
+                        },
+                      ),
+                    );
+                  },
+                  tooltip: 'Create new exercise',
+                ),
                 filled: true,
                 fillColor: AppColors.surfaceElevated,
                 border: OutlineInputBorder(

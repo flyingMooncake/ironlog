@@ -5,6 +5,7 @@ class UserProfile {
   final double? weight;
   final double? height;
   final int? age;
+  final double? bfpPercentage;
   final UnitSystem unitSystem;
   final int restTimerDefault;
   final bool autoStartRestTimer;
@@ -16,6 +17,7 @@ class UserProfile {
     this.weight,
     this.height,
     this.age,
+    this.bfpPercentage,
     this.unitSystem = UnitSystem.metric,
     this.restTimerDefault = 60,
     this.autoStartRestTimer = false,
@@ -30,6 +32,7 @@ class UserProfile {
       weight: map['weight'] as double?,
       height: map['height'] as double?,
       age: map['age'] as int?,
+      bfpPercentage: (map['bfp_percentage'] as num?)?.toDouble(),
       unitSystem: map['unit_system'] == 'imperial'
           ? UnitSystem.imperial
           : UnitSystem.metric,
@@ -46,6 +49,7 @@ class UserProfile {
       'weight': weight,
       'height': height,
       'age': age,
+      'bfp_percentage': bfpPercentage,
       'unit_system': unitSystem.name,
       'rest_timer_default': restTimerDefault,
       'auto_start_rest_timer': autoStartRestTimer ? 1 : 0,
